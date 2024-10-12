@@ -1,0 +1,14 @@
+>HPR_trans_coacervate
+                                                                                                                                                                      
+                                                                                                         
+      ╭──AA────╮                                                                                         
+      ╰AGCGCU─╮╰CCCUC─GUACAGCGGC─UCUAGUGUGC─U─UCACAG─UC─CCAUAUCC─U─CGCGUGCCUC─AGAGGACCUG─UCACGA╮                                 
+              │ ┊┊┊┊┊ ┊┊┊┊┊┊┊┊┊┊ ┊┊┊┊┊┊┊┊┊┊                        ┊┊┊┊┊┊┊┊┊┊ ┊┊┊┊┊┊┊┊┊┊ ┊┊┊┊┊ │             
+              ╰AGGGAG─UAUGUCGCUG─AGAUUACACG╮ ╭CCUAUACC─CU─GACACU╮ ╭GCGCAUGGAG─UUUCCUGGAU─AGUGC╮╰─GUCGAC╮     
+                                           │ │                  │ │                           ╰────AA──╯     
+                                           U U                  U U                                          
+      ╭──AA────╮                           │ │                  │ │                                          
+      ╰AGCGCU─╮╰GGGUG─UAGUCGCAUA─GACAUUGUGC╯ │                  │ ╰CACUCGUAGC─AUUGUCC────CUG─UCUCCA╮         
+              │ ┊┊┊┊┊ ┊┊┊┊┊┊┊┊┊┊ ┊┊┊┊┊┊┊┊┊┊  │                  │  ┊┊┊┊┊┊┊┊┊┊ ┊┊┊┊┊┊┊    ┊┊┊ ┊┊┊┊┊ │         
+              ╰ACCCAC─GUCAGCGUGU─CUGUGACACG──╯                  ╰──GUGAGUAUCG─UGACAGG5  3GAU─AGAGG╮╰─GUCGAC╮ 
+                                                                                                  ╰────AA──╯ 
