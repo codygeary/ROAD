@@ -17,7 +17,7 @@ use utf8;
 #The above copyright notice and this permission notice shall be
 #included in all copies or substantial portions of the Software.
 
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY,\ FITNESS FOR A PARTICULAR PURPOSE AND
 # NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
@@ -25,7 +25,6 @@ use utf8;
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALIN\ GS IN THE
 # SOFTWARE.
-
 
 ##########
 ### User-Configurable Global Vars
@@ -71,7 +70,6 @@ my $MaxKL = -12;    ##Default -10.8
 my $GC_check = 100;
 
 my $fav_rad_level=15;         #'radiation' level, ~number of mutants per round, this scales up/down based on success.
-
 
 my $start_time = time;        #start a timer
 #my $timeout_length = 7200;   #length of timeout in seconds - default is set to 2h
@@ -231,134 +229,62 @@ sub distance { #outputs to $distance
 sub map {
     @map = ();
     my @secondary = split('', $_[0]);
-    my @last_bracket;
-    my @last_brace;
-    my @last_curlybrace;
+    
+    # Initialize bracket stacks
+    my %bracket_stack = (
+        '(' => [], ')' => '(',
+        '[' => [], ']' => '[',
+        '{' => [], '}' => '{',
+        'A' => [], '1' => 'A',
+        'B' => [], '2' => 'B',
+        'C' => [], '3' => 'C',
+        'D' => [], '4' => 'D',
+        'E' => [], '5' => 'E',
+        'F' => [], '6' => 'F',
+        'G' => [], '7' => 'G',
+        'H' => [], '8' => 'H',
+        'I' => [], '9' => 'I',
+        'J' => [], '0' => 'J'
+    );
 
-    my @last_a_brace;
-    my @last_b_brace;
-    my @last_c_brace;
-    my @last_d_brace;
-    my @last_e_brace;
-    my @last_f_brace;
-    my @last_g_brace;
-    my @last_h_brace;
-    my @last_i_brace;
-    my @last_j_brace;
+    # Use an array to track positions of opening brackets
+    my %opening_bracket_positions;
 
-    my $counter = 0;
-    foreach(@secondary){
-        if ($_ eq "."){
-            $map[$counter] = $counter;   ##Single strands map to themselves
-        }
-        elsif ($_ eq "("){
-            push @last_bracket, $counter;
-        }
-        elsif ($_ eq ")"){
-            my $partner = pop @last_bracket;
-            $map[$counter]=$partner;
-            $map[$partner]=$counter;
-        }
-        elsif ($_ eq "["){
-            push @last_brace, $counter;
-        }
-        elsif ($_ eq "]"){
-            my $buddy = pop @last_brace;
-            $map[$counter]=$buddy;
-            $map[$buddy]=$counter;
-        }
-        elsif ($_ eq "{"){
-            push @last_curlybrace, $counter;
-        }
-        elsif ($_ eq "}"){
-            my $pal = pop @last_curlybrace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "A"){    ##Outwards pointing KLs map as A-1 B-2 C-3.... I-9 J-0
-            push @last_a_brace, $counter;
-        }
-        elsif ($_ eq "1"){
-            my $pal = pop @last_a_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "B"){
-            push @last_b_brace, $counter;
-        }
-        elsif ($_ eq "2"){
-            my $pal = pop @last_b_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "C"){
-            push @last_c_brace, $counter;
-        }
-        elsif ($_ eq "3"){
-            my $pal = pop @last_c_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "D"){
-            push @last_d_brace, $counter;
-        }
-        elsif ($_ eq "4"){
-            my $pal = pop @last_d_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "E"){
-            push @last_e_brace, $counter;
-        }
-        elsif ($_ eq "5"){
-            my $pal = pop @last_e_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "F"){
-            push @last_f_brace, $counter;
-        }
-        elsif ($_ eq "6"){
-            my $pal = pop @last_f_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "G"){
-            push @last_g_brace, $counter;
-        }
-        elsif ($_ eq "7"){
-            my $pal = pop @last_g_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "H"){
-            push @last_h_brace, $counter;
-        }
-        elsif ($_ eq "8"){
-            my $pal = pop @last_h_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "I"){
-            push @last_i_brace, $counter;
-        }
-        elsif ($_ eq "9"){
-            my $pal = pop @last_i_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "J"){
-            push @last_j_brace, $counter;
-        }
-        elsif ($_ eq "0"){
-            my $pal = pop @last_j_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
+    for my $counter (0 .. $#secondary) {
+        my $char = $secondary[$counter];
 
-        $counter ++;
+        if ($char eq ".") {
+            $map[$counter] = $counter;  # Single strands map to themselves
+        } elsif ($char eq '(' || $char eq '[' || $char eq '{') {
+            # If it's an opening bracket, push its index onto the stack
+            push @{ $bracket_stack{$char} }, $counter;  # Store the index of the opening bracket
+        } elsif (exists $bracket_stack{$char}) {
+            # If it's a closing bracket, find its matching opening bracket
+            my $opening_bracket = '';
+
+            # Determine the type of opening bracket it corresponds to
+            if ($char eq ')') {
+                $opening_bracket = '(';
+            } elsif ($char eq ']') {
+                $opening_bracket = '[';
+            } elsif ($char eq '}') {
+                $opening_bracket = '{';
+            }
+
+            # Pop the last index of the opening bracket
+            if (@{ $bracket_stack{$opening_bracket} }) {
+                my $partner = pop @{ $bracket_stack{$opening_bracket} };  # Pop the last index of the opening bracket
+                $map[$counter] = $partner;  # Map closing to opening
+                $map[$partner] = $counter;  # Map opening to closing
+            }
+        }
     }
+
+    return @map;
 }
+
+
+
 
 sub randseq {  #returns $randomletter
     my $randompick = int(rand(4));

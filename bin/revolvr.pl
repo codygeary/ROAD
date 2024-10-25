@@ -229,133 +229,58 @@ sub distance { #outputs to $distance
 sub map {
     @map = ();
     my @secondary = split('', $_[0]);
-    my @last_bracket;
-    my @last_brace;
-    my @last_curlybrace;
+    
+    # Initialize bracket stacks
+    my %bracket_stack = (
+        '(' => [], ')' => '(',
+        '[' => [], ']' => '[',
+        '{' => [], '}' => '{',
+        'A' => [], '1' => 'A',
+        'B' => [], '2' => 'B',
+        'C' => [], '3' => 'C',
+        'D' => [], '4' => 'D',
+        'E' => [], '5' => 'E',
+        'F' => [], '6' => 'F',
+        'G' => [], '7' => 'G',
+        'H' => [], '8' => 'H',
+        'I' => [], '9' => 'I',
+        'J' => [], '0' => 'J'
+    );
 
-    my @last_a_brace;
-    my @last_b_brace;
-    my @last_c_brace;
-    my @last_d_brace;
-    my @last_e_brace;
-    my @last_f_brace;
-    my @last_g_brace;
-    my @last_h_brace;
-    my @last_i_brace;
-    my @last_j_brace;
+    # Use an array to track positions of opening brackets
+    my %opening_bracket_positions;
 
-    my $counter = 0;
-    foreach(@secondary){
-        if ($_ eq "."){
-            $map[$counter] = $counter;   ##Single strands map to themselves
-        }
-        elsif ($_ eq "("){
-            push @last_bracket, $counter;
-        }
-        elsif ($_ eq ")"){
-            my $partner = pop @last_bracket;
-            $map[$counter]=$partner;
-            $map[$partner]=$counter;
-        }
-        elsif ($_ eq "["){
-            push @last_brace, $counter;
-        }
-        elsif ($_ eq "]"){
-            my $buddy = pop @last_brace;
-            $map[$counter]=$buddy;
-            $map[$buddy]=$counter;
-        }
-        elsif ($_ eq "{"){
-            push @last_curlybrace, $counter;
-        }
-        elsif ($_ eq "}"){
-            my $pal = pop @last_curlybrace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "A"){    ##Outwards pointing KLs map as A-1 B-2 C-3.... I-9 J-0
-            push @last_a_brace, $counter;
-        }
-        elsif ($_ eq "1"){
-            my $pal = pop @last_a_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "B"){
-            push @last_b_brace, $counter;
-        }
-        elsif ($_ eq "2"){
-            my $pal = pop @last_b_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "C"){
-            push @last_c_brace, $counter;
-        }
-        elsif ($_ eq "3"){
-            my $pal = pop @last_c_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "D"){
-            push @last_d_brace, $counter;
-        }
-        elsif ($_ eq "4"){
-            my $pal = pop @last_d_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "E"){
-            push @last_e_brace, $counter;
-        }
-        elsif ($_ eq "5"){
-            my $pal = pop @last_e_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "F"){
-            push @last_f_brace, $counter;
-        }
-        elsif ($_ eq "6"){
-            my $pal = pop @last_f_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "G"){
-            push @last_g_brace, $counter;
-        }
-        elsif ($_ eq "7"){
-            my $pal = pop @last_g_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "H"){
-            push @last_h_brace, $counter;
-        }
-        elsif ($_ eq "8"){
-            my $pal = pop @last_h_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "I"){
-            push @last_i_brace, $counter;
-        }
-        elsif ($_ eq "9"){
-            my $pal = pop @last_i_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
-        elsif ($_ eq "J"){
-            push @last_j_brace, $counter;
-        }
-        elsif ($_ eq "0"){
-            my $pal = pop @last_j_brace;
-            $map[$counter]=$pal;
-            $map[$pal]=$counter;
-        }
+    for my $counter (0 .. $#secondary) {
+        my $char = $secondary[$counter];
 
-        $counter ++;
+        if ($char eq ".") {
+            $map[$counter] = $counter;  # Single strands map to themselves
+        } elsif ($char eq '(' || $char eq '[' || $char eq '{') {
+            # If it's an opening bracket, push its index onto the stack
+            push @{ $bracket_stack{$char} }, $counter;  # Store the index of the opening bracket
+        } elsif (exists $bracket_stack{$char}) {
+            # If it's a closing bracket, find its matching opening bracket
+            my $opening_bracket = '';
+
+            # Determine the type of opening bracket it corresponds to
+            if ($char eq ')') {
+                $opening_bracket = '(';
+            } elsif ($char eq ']') {
+                $opening_bracket = '[';
+            } elsif ($char eq '}') {
+                $opening_bracket = '{';
+            }
+
+            # Pop the last index of the opening bracket
+            if (@{ $bracket_stack{$opening_bracket} }) {
+                my $partner = pop @{ $bracket_stack{$opening_bracket} };  # Pop the last index of the opening bracket
+                $map[$counter] = $partner;  # Map closing to opening
+                $map[$partner] = $counter;  # Map opening to closing
+            }
+        }
     }
+
+    return @map;
 }
 
 sub randseq {  #returns $randomletter
@@ -421,19 +346,25 @@ if($generate_sequence eq 'false' ){&printer("I found a sequence!\n");}
 ## Parse the Target string into 2 arrays, 1 with PK and 1 without
 #######
 
+# Define sets of characters for easier checking
+my %pk_chars = map { $_ => 1 } qw([ ] { } A B C D E F G H I J 1 2 3 4 5 6 7 8 9 0);
+my %open_brackets = map { $_ => 1 } qw({ A B C D E F G H I J);
+my %close_brackets = map { $_ => 1 } qw(} 1 2 3 4 5 6 7 8 9 0);
+
 my $targetscrubbed = "";
-foreach(@target){
-    if ($_ eq "[" || $_ eq "]" || $_ eq "{" || $_ eq "}" ||
-        $_ eq "A" || $_ eq "B" || $_ eq "C" || $_ eq "D" || $_ eq "E" || $_ eq "F" || $_ eq "G" || $_ eq "H" || $_ eq "I" || $_ eq "J" ||
-         $_ eq "1" || $_ eq "2" || $_ eq "3" || $_ eq "4" || $_ eq "5" || $_ eq "6" || $_ eq "7" || $_ eq "8" || $_ eq "9" || $_ eq "0") {
-        $targetstring=$targetstring.".";
-    }   ## $targetstring has the PKs as .
-    else {$targetstring=$targetstring.$_;}
 
+foreach my $char (@target) {
+    # Append to targetstring, replacing PK characters with "."
+    $targetstring .= exists $pk_chars{$char} ? "." : $char;
 
-    if ($_ eq "{"  || $_ eq "A" || $_ eq "B" || $_ eq "C" || $_ eq "D" || $_ eq "E" || $_ eq "F" || $_ eq "G" || $_ eq "H" || $_ eq "I" || $_ eq "J" ) { $targetscrubbed=$targetscrubbed."[";}   ## $targetscrubbed has the { as [
-    elsif ($_ eq "}" || $_ eq "1" || $_ eq "2" || $_ eq "3" || $_ eq "4" || $_ eq "5" || $_ eq "6" || $_ eq "7" || $_ eq "8" || $_ eq "9" || $_ eq "0") { $targetscrubbed=$targetscrubbed."]";}
-    else {$targetscrubbed=$targetscrubbed.$_;}
+    # Append to targetscrubbed, translating PK open and close characters
+    if (exists $open_brackets{$char}) {
+        $targetscrubbed .= "[";
+    } elsif (exists $close_brackets{$char}) {
+        $targetscrubbed .= "]";
+    } else {
+        $targetscrubbed .= $char;
+    }
 }
 @target = split(//,$targetscrubbed);   # @target has (.) and [.] but not {
 
