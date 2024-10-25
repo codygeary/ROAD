@@ -1,4 +1,4 @@
-#!/usr/bin/env perl   
+#!/usr/bin/env perl
 #  -*- perl -*-
 
 # Ebbe Sloth Andersen, esa@inano.au.dk, Mar 2013
@@ -27,7 +27,7 @@ while ( $line = <FILE> ) {
     @cols = ( );
     @cols = split(/\s+/, $line);
     if ( defined $cols[0] ) {
-        if ( $cols[0] eq "ATOM") { 
+        if ( $cols[0] eq "ATOM") {
             push @ATOM, {
                 "a" => substr("$line", 13, 3),  #atom type
                 "n" => substr("$line", 19, 1),  #residue type
@@ -39,7 +39,7 @@ while ( $line = <FILE> ) {
                 "j" => "N",    #set each atom to N, which means it might be an O3' position
             };
         }
-        if ( $cols[0] eq "HETATM") { 
+        if ( $cols[0] eq "HETATM") {
             push @ATOM, {
                 "a" => substr("$line", 13, 3),  #atom type
                 "n" => substr("$line", 17, 1),  #residue type  ##for HETATM the residue type always gets printed 2 positions earlier in swisspdb!
@@ -58,12 +58,13 @@ while ( $line = <FILE> ) {
 #print Dumper ( @ATOM );
 #exit;
 
-# PRINT PDB FILE
+# PRINT PDB FILE
+
 my $i = 0;
 my $x = 1;
 my $y = 1;
 my $z = 1;
-my $c = $ATOM[0]->{i}; 
+my $c = $ATOM[0]->{i};
 my $W = 1;
 my $AT = "";
 my $t = 1;
@@ -83,21 +84,22 @@ foreach $ATOM ( @ATOM ) {      #counts assuming the residues are all numbered di
         $residue++;
         $c = $ATOM->{i};
     }
-}   
+}
 if ($verbose ==1) {print "REMARK "; print $residue; print " Residues in the PDB file \n";}
 
 
 #$c = $ATOM[0]->{i};   #start at the first residue in the file
-$c = 1;  #start at the residue numbered 1$cur_chain = $ATOM[0]->{h};
+$c = 1;  #start at the residue numbered 1
+$cur_chain = $ATOM[0]->{h};
 if ($verbose ==1) {print "REMARK starting on chain: "; print $cur_chain; print "\n";}
 for ($i=0;$i<$residue;$i++) {
-    
+
     while ($W<$residue+1){
 
     # print the chosen nucleotide
 
     foreach $ATOM ( @ATOM ) {
-        if ( $ATOM->{i} == $c && $ATOM->{j} eq "N" ) { 
+        if ( $ATOM->{i} == $c && $ATOM->{j} eq "N" ) {
             printf "%-6s", "ATOM";
             printf "%5s", $t;
             print "  ";
@@ -124,29 +126,28 @@ for ($i=0;$i<$residue;$i++) {
             if ($W == $residue) { $residue--;}   #clumsy way to exit the while cycle once the last residue is reached and output printed.
         }
     }
-    
-    # find the next nucleotide 
+
+    # find the next nucleotide
 
     foreach $ATOM ( @ATOM ) {
-        if ( $ATOM->{a} eq "P  " && $ATOM->{j} eq "N" ) { # many instances  
+        if ( $ATOM->{a} eq "P  " && $ATOM->{j} eq "N" ) { # many instances
             $distance = sqrt(($x - $ATOM->{x})**2 +  ($y - $ATOM->{y})**2 + ($z - $ATOM->{z})**2 );
             if ( $distance < 1.8 + $thresh ) {   #sets the initial phosphate bond distance limit
                if ( $ATOM->{h} eq $cur_chain ) { #check of the potential link is the same chain
-                $c = $ATOM->{i};              
+                $c = $ATOM->{i};
                 $W++;
                 $thresh=0.0;   #reset threshold back to 0
                 if ($verbose ==1) {print "REMARK  Distance = "; print $distance; print "\n";}
-               } elsif ($thresh > 4) {  #Set the threshold for switching to a new chain
-                $c = $ATOM->{i};              
-                $W++;
-                $thresh=0.0;   #reset threshold back to 0
-                $cur_chain = $ATOM->{h};
-                if ($verbose ==1) {
-                     print "REMARK  Switching Chains to "; print $cur_chain; print "\n";
-                     print "REMARK  Distance = "; print $distance; print "\n";
+                } elsif ($thresh > 4) {  #Set the threshold for switching to a new chain
+                    $c = $ATOM->{i};
+                    $W++;
+                    $thresh=0.0;   #reset threshold back to 0
+                    $cur_chain = $ATOM->{h};
+                    if ($verbose ==1) {
+                         print "REMARK  Switching Chains to "; print $cur_chain; print "\n";
+                         print "REMARK  Distance = "; print $distance; print "\n";
+                    }
                 }
-               }
-
             }
         }
     }
