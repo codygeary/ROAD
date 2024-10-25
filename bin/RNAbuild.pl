@@ -192,211 +192,101 @@ for ($i=0; $i<$strand_length; $i++){$motif[$i]=1;} #pre-block all sites, and unc
 
 my $parsed_struc = $input_structure;
 
-$find = qr/.[\^]/;  #temporarily replace "?^" with "E" so the strand length is the correct one  This will be updated again with the correct pattern
-$replace = "E";
+$find = qr/.[\^]/;  # temporarily replace "^" with "E" so the strand length is the correct one. This will be updated again with the correct pattern
+$replace = "E"; # Crossover symbols are named E
 $parsed_struc =~ s/$find/$replace/g;
 
 my @temp_structure = split(//, $parsed_struc);
 
-$find =    "))\[\[\[\[\[\[.))";     #bKL A
-$replace = "V----------"; #$replace = quotemeta $replace;
-my $offset = 0;
-my $search_pos = index($parsed_struc, $find, $offset);
-    while ($search_pos != -1) {  #find the first position of each case, and each subsequent case
-        $temp_structure[$map[$search_pos]]="-";   #bKLB
-        $temp_structure[$map[$search_pos]-1]="-";
-        $temp_structure[$map[$search_pos]-2]="-";
-        $temp_structure[$map[$search_pos]-3]="W";
+# Define bKL bipartite patterns
+my @patterns = (
+    [qr/\)\)\[\[\[\[\[\[.\)\)/, "V----------"],  # bKL A
+    [qr/\)\]\]\]\]\]\].\)\)/, "V----------"],    # bKL A - closing KL form
+    [qr/\)\).......\)\)/, "V----------"],        # bKL A unpaired
+);
 
+# Process bKL patterns
+for my $pair (@patterns) {
+    my ($pattern, $replacement) = @$pair;  # Correctly dereference the array reference
+    my $offset = 0;
+    my $search_pos = index($parsed_struc, $pattern, $offset);
+
+    while ($search_pos != -1) {
+        # Modify the structure
+        $temp_structure[$map[$search_pos]] = "-";   
+        $temp_structure[$map[$search_pos] - 1] = "-";
+        $temp_structure[$map[$search_pos] - 2] = "-";
+        $temp_structure[$map[$search_pos] - 3] = "W";
         $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $find, $offset);
-
+        $search_pos = index($parsed_struc, $pattern, $offset);
     }
 
-    $parsed_struc = join "",(@temp_structure);
-    $find = quotemeta $find;
-    $parsed_struc =~ s/$find/$replace/g; # now go and swap $find with the equal-length fragment $replace
-    @temp_structure = split(//, $parsed_struc);
+    # Swap the pattern with the replacement
+    $parsed_struc =~ s/\Q$pattern\E/$replacement/g; 
+    @temp_structure = split(//, $parsed_struc); # Re-split for the next pattern
+}
 
+# Define 90-degree motifs bipartite patterns
+@patterns = (
+    [qr/\(.....\(/, "F------"],  # 90deg motif AACUA
+    [qr/\).....\)/, "F------"],  # 90deg motif AACUA
+);
 
-$find =    "))\]\]\]\]\]\].))";     #bKL A - closing KL form
-$replace = "V----------"; #$replace = quotemeta $replace;
-$offset = 0;
-$search_pos = index($parsed_struc, $find, $offset);
-    while ($search_pos != -1) {  #find the first position of each case, and each subsequent case
-        $temp_structure[$map[$search_pos]]="-";   #bKLB
-        $temp_structure[$map[$search_pos]-1]="-";
-        $temp_structure[$map[$search_pos]-2]="-";
-        $temp_structure[$map[$search_pos]-3]="W";
+# Process 90deg motif patterns
+for my $pair (@patterns) {
+    my ($pattern, $replacement) = @$pair;  # Correctly dereference the array reference
+    my $offset = 0;
+    my $search_pos = index($parsed_struc, $pattern, $offset);
 
+    while ($search_pos != -1) {
+        # Modify the structure
+        $temp_structure[$map[$search_pos]] = "-";   
+        $temp_structure[$map[$search_pos] - 1] = "G";
         $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $find, $offset);
-
+        $search_pos = index($parsed_struc, $pattern, $offset);
     }
 
-    $parsed_struc = join "",(@temp_structure);
-    $find = quotemeta $find;
-    $parsed_struc =~ s/$find/$replace/g; # now go and swap $find with the equal-length fragment $replace
-    @temp_structure = split(//, $parsed_struc);
+    # Swap the pattern with the replacement
+    $parsed_struc =~ s/\Q$pattern\E/$replacement/g; 
+    @temp_structure = split(//, $parsed_struc); # Re-split for the next pattern
+}
 
+# Final parsed structure
+$parsed_struc = join "", @temp_structure;
 
-$find =    ")).......))";     #bKL A unpaired
-$replace = "V----------"; #$replace = quotemeta $replace;
-$offset = 0;
-$search_pos = index($parsed_struc, $find, $offset);
-    while ($search_pos != -1) {  #find the first position of each case, and each subsequent case
-        $temp_structure[$map[$search_pos]]="-";   #bKLB
-        $temp_structure[$map[$search_pos]-1]="-";
-        $temp_structure[$map[$search_pos]-2]="-";
-        $temp_structure[$map[$search_pos]-3]="W";
-        $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $find, $offset);
-    }
-    $parsed_struc = join "",(@temp_structure);
-    $find = quotemeta $find;
-    $parsed_struc =~ s/$find/$replace/g; # now go and swap $find with the equal-length fragment $replace
-    @temp_structure = split(//, $parsed_struc);
+# Define patterns and their replacements
+@patterns = (
+    ["((((((.(.((((....)))))))))))", "R---------------------------"],   # R - Tar/Tat RNA length
+    ["(((((.((((......)))))))))", "N------------------------"],         # N - PP7
+    ["((.((....))))", "M------------"],                                 # M - MS2
+    ["(((..((............(.(", "S---------------------"],               # S - iSpinach A
+    [")))..))............).)", "S---------------------"],               # S - iSpinach A 
+    ["(((..((..............(", "S---------------------"],               # S - iSpinach A variant
+    [")))..))..............)", "S---------------------"],               # S - iSpinach A variant
+    [").).........)))))", "U----------------"],                         # U - iSpinach B
+    ["(.(.........(((((", "U----------------"],                         # U - iSpinach B
+    ["(((.......................)))", "Q----------------------------"], # Q - Mango terminal loop
+    ["(....)", "T-----"],                                               # T - Tetraloop
+    ["(.........)", "K----------"],                                     # K - KL 9 nt
+    ["(..[[[[[[.)", "K----------"],                                     # K - KL 9 nt
+    ["(..]]]]]].)", "K----------"],                                     # K - KL 9 nt
+    ["(.......)","L--------"],                                          # L - KL 7 nt
+    ["([[[[[[[)", "L--------"],                                         # L - KL 7 nt
+    ["(]]]]]]])", "L--------"],                                         # L - KL 7 nt
+    ["(...((", "B-----"],                                               # B - K-turn A
+    [")...))", "B-----"],                                               # B - K-turn A
+    ["((......(", "C--------"],                                         # C - K-turn B
+    ["))......)", "C--------"],                                         # C - K-turn B
+);
 
-$find =    "(.....(";     #90deg motif AACUA
-$replace = "F------"; #$replace = quotemeta $replace;
-    $offset = 0;
-    $search_pos = index($parsed_struc, $find, $offset);
-    while ($search_pos != -1) {  #find the first position of each case, and each subsequent case
-        $temp_structure[$map[$search_pos]]="-";   #90deg motif
-        $temp_structure[$map[$search_pos]-1]="G";
-        $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $find, $offset);
-    }
-    $parsed_struc = join "",(@temp_structure);
-    $find = quotemeta $find;
-    $parsed_struc =~ s/$find/$replace/g; # now go and swap $find with the equal-length fragment $replace
-    @temp_structure = split(//, $parsed_struc);
+# Perform find and replace operations
+for my $pair (@patterns) {
+    my ($find, $replace) = @$pair;  # Dereference the array
+    $find = quotemeta $find;        # Escape regex metachars
+    $parsed_struc =~ s/$find/$replace/g;  # Perform the substitution
+}
 
-$find =    ").....)";     #90deg motif AACUA
-$replace = "F------"; #$replace = quotemeta $replace;
-    $offset = 0;
-    $search_pos = index($parsed_struc, $find, $offset);
-    while ($search_pos != -1) {  #find the first position of each case, and each subsequent case
-        $temp_structure[$map[$search_pos]]="-";   #90deg motif
-        $temp_structure[$map[$search_pos]-1]="G";
-        $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $find, $offset);
-    }
-    $parsed_struc = join "",(@temp_structure);
-    $find = quotemeta $find;
-    $parsed_struc =~ s/$find/$replace/g; # now go and swap $find with the equal-length fragment $replace
-    @temp_structure = split(//, $parsed_struc);
-
-#character "-" will be ignored, used as fill-spacer in the diagram
-
-$find =    "((((((.(.((((....)))))))))))";  #Tar/Tat RNA length28
-$replace = "R---------------------------";
-$find = quotemeta $find; # escape regex metachars if present
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(((((.((((......)))))))))";  #PP7  length25
-$replace = "N------------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "((.((....))))";  #MS2 length13
-$replace = "M------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(((..((............(.(";  #iSpinach A
-$replace = "S---------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    ")))..))............).)";  #iSpinach A
-$replace = "S---------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(((..((..............(";  #iSpinach A
-$replace = "S---------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    ")))..))..............)";  #iSpinach A
-$replace = "S---------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-
-$find =    ").).........)))))";  #iSpinach B
-$replace = "U----------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(.(.........(((((";  #iSpinach B
-$replace = "U----------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(((.......................)))";  #Mango  length29
-$replace = "Q----------------------------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(....)";
-$replace = "T-----";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(.........)";
-$replace = "K----------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(..[[[[[[.)";
-$replace = "K----------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(..]]]]]].)";
-$replace = "K----------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(.......)";
-$replace = "L--------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "([[[[[[[)";
-$replace = "L--------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(]]]]]]])";
-$replace = "L--------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "(...((";   #search for K-turn, note that this actually reads any 3nt or 6nt bulge as a Kturn pattern, but no other motifs use 3nt or 6nt at this stage.
-$replace = "B-----";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    ")...))";
-$replace = "B-----";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "((......(";  # B is the 2nd side of the Kturn
-$replace = "C--------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-$find =    "))......)";
-$replace = "C--------";
-$find = quotemeta $find;
-$parsed_struc =~ s/$find/$replace/g;
-
-#&printer("$parsed_struc \n");  ##Structures larger than 1000nts can crash SwissPDB by overflowing the remark buffer
-
+# Replace crossovers "E" and the subsequent nts to fix the sequence length
 $find = qr[E..];
 $replace = "E"; $replace = quotemeta $replace;
 $parsed_struc =~ s/$find/$replace/g;
@@ -405,11 +295,11 @@ $find = "-"; #remove all of the "-" spacers now that we are at the end
 $replace = "";
 $parsed_struc =~ s/$find/$replace/g;
 
-$find = qr/\W/;
+$find = qr/\W/; #replace white space with Helix
 $replace = "H";
 $parsed_struc =~ s/$find/$replace/g;
 
-$find = qr[\.];
+$find = qr[\.]; #handle any unpaired at Helix. -- this could be improved!
 $replace = "H";
 $parsed_struc =~ s/$find/$replace/g;
 
@@ -424,38 +314,41 @@ my @assembly_instructions = split(//, $parsed_struc);
 my $k =0;
 my $nt_disp = $nt_pos+1;
 my $nt_disp2 = $nt_pos;
-for ( $k=0; $k< scalar(@assembly_instructions) ; $k++){
+# Define a hash to map assembly instructions to their respective actions and remarks
+my %assembly_actions = (
+    'H' => sub { add_nts(); },
+    'E' => sub { # Special treatment of crossovers
+        my $nt_disp = $map[$nt_pos - 1] + 1; 
+        printer("REMARK Add Crossover $nt_pos,$nt_disp");
+        crossover(); 
+        $nt_disp = $nt_pos - 2; 
+        my $nt_disp2 = $map[$nt_disp - 1] + 1; 
+        printer(",$nt_disp,$nt_disp2\n");
+    },
+    'T' => sub { printer("REMARK Add GNRA $nt_pos-"); add_tetraloop(); printer("$nt_pos\n"); },
+    'K' => sub { printer("REMARK Add 180KL $nt_pos-"); add_KL(); printer("$nt_pos-1\n"); },
+    'L' => sub { printer("REMARK Add 120KL $nt_pos-"); add_KLbend(); printer("$nt_pos\n"); },
+    'R' => sub { printer("REMARK Add TAR $nt_pos-"); add_tar(); printer("$nt_pos\n"); },
+    'M' => sub { printer("REMARK Add MS2 $nt_pos-"); add_ms2(); printer("$nt_pos\n"); },
+    'N' => sub { printer("REMARK Add PP7 $nt_pos-"); add_pp7(); printer("$nt_pos\n"); },
+    'S' => sub { printer("REMARK Add Spinach-A $nt_pos-"); add_spinacha(); printer("$nt_pos\n"); },
+    'U' => sub { printer("REMARK Add Spinach-B $nt_pos-"); add_spinachb(); printer("$nt_pos\n"); },
+    'B' => sub { printer("REMARK Add Kturn-A $nt_pos-"); add_kturna(); printer("$nt_pos\n"); },
+    'C' => sub { printer("REMARK Add Kturn-B $nt_pos-"); add_kturnb(); printer("$nt_pos\n"); },
+    'Q' => sub { printer("REMARK Add MANGO $nt_pos-"); add_mango(); printer("$nt_pos\n"); },
+    'V' => sub { printer("REMARK Add BKL-A $nt_pos-"); add_bkla(); printer("$nt_pos\n"); },
+    'W' => sub { printer("REMARK Add BKL-B $nt_pos-"); add_bklb(); printer("$nt_pos\n"); },
+    'F' => sub { printer("REMARK Add 90deg AACUA bend\n"); add_ninetya(); printer("$nt_pos\n"); },
+    'G' => sub { printer("REMARK Add 90deg AACUA hinge\n"); add_ninetyb(); printer("$nt_pos\n"); },
+);
 
-    if ($assembly_instructions[$k] eq 'H') { &add_nts;}
-    if ($assembly_instructions[$k] eq 'T') {&printer("REMARK Add GNRA $nt_pos-"); &add_tetraloop; &printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'K') {&printer("REMARK Add 180KL $nt_pos-"); &add_KL; $nt_disp=$nt_pos-1;   &printer("$nt_disp\n");}
-    if ($assembly_instructions[$k] eq 'L') {&printer("REMARK Add 120KL $nt_pos-"); &add_KLbend;&printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'E') {
-        $nt_disp =$map[$nt_pos-1]+1; &printer("REMARK Add Crossover $nt_pos,$nt_disp");
-        &crossover;
-        $nt_disp=$nt_pos-2; $nt_disp2 =$map[$nt_disp-1]+1; &printer(",$nt_disp,$nt_disp2\n");
+# Iterate through the assembly instructions
+for my $instruction (@assembly_instructions) {
+    if (exists $assembly_actions{$instruction}) {
+        $assembly_actions{$instruction}->();  # Call the associated action
     }
-
-    if ($assembly_instructions[$k] eq 'R') {&printer("REMARK Add TAR $nt_pos-"); &add_tar;&printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'M') {&printer("REMARK Add MS2 $nt_pos-"); &add_ms2;&printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'N') {&printer("REMARK Add PP7 $nt_pos-"); &add_pp7;&printer("$nt_pos\n");}
-
-    if ($assembly_instructions[$k] eq 'S') {&printer("REMARK Add Spinach-A $nt_pos-"); &add_spinacha;&printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'U') {&printer("REMARK Add Spinach-B $nt_pos-"); &add_spinachb;&printer("$nt_pos\n");}
-
-    if ($assembly_instructions[$k] eq 'B') {&printer("REMARK Add Kturn-A $nt_pos-"); &add_kturna;&printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'C') {&printer("REMARK Add Kturn-B $nt_pos-"); &add_kturnb;&printer("$nt_pos\n");}
-
-    if ($assembly_instructions[$k] eq 'Q') {&printer("REMARK Add MANGO $nt_pos-"); &add_mango;&printer("$nt_pos\n");}
-
-    if ($assembly_instructions[$k] eq 'V') {&printer("REMARK Add BKL-A $nt_pos-"); &add_bkla; &printer("$nt_pos\n");}
-    if ($assembly_instructions[$k] eq 'W') {&printer("REMARK Add BKL-B $nt_pos-"); &add_bklb; &printer("$nt_pos\n");}
-
-    if ($assembly_instructions[$k] eq 'F') {&printer("REMARK Add 90deg AACUA bend\n"); &add_ninetya;}
-    if ($assembly_instructions[$k] eq 'G') {&printer("REMARK Add 90deg AACUA hinge\n"); &add_ninetyb;}
-
-
 }
+
 &printer("REMARK Assembly completed\n");
 ####Print PDB File
 
@@ -471,10 +364,8 @@ foreach $PDB ( @PDB ) {  #print out the PDB file
             printf $output_spool "%5s", $t;
             print $output_spool "  ";
             print $output_spool $PDB->{a};
-
             print $output_spool "   ";
             print $output_spool $PDB->{n};
-
             print $output_spool " ";
             print $output_spool $PDB->{h};  #Retain chain names
             printf $output_spool "%4s", $PDB->{i};
@@ -535,10 +426,8 @@ foreach $PDB ( @PDB ) {  #print out the PDB file non-RNA part
             printf $output_spool "%5s", $t;
             print $output_spool "  ";
             print $output_spool $PDB->{a};
-
             print $output_spool " ";
             print $output_spool $PDB->{p};
-
             print $output_spool " ";
             print $output_spool $PDB->{h};  #Retain chain names
             printf $output_spool "%4s", $PDB->{i};
@@ -1127,25 +1016,25 @@ sub add_tetraloop {
                   ($ATOM->{a} eq 'N3 ') || ($ATOM->{a} eq 'C4 ') ||
                   ($ATOM->{a} eq 'O6 ') || ($ATOM->{a} eq 'N2 ') ||
                   ($ATOM->{a} eq 'O2 ') || ($ATOM->{a} eq 'N4 ') || ($ATOM->{a} eq 'O4 ')) ) ) {
-                    $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
+                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
 
-                    @moved = &rotate_z ("@point",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                    @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                    @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+                @moved = &rotate_z ("@point",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
 
-                    @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
 
-                    $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
 
-                    push @PDB, {
-                        "a" => $ATOM->{a},  #atom type
-                        "n" => $seq[$nt_pos-1],  #residue type
-                        "i" => $nt_pos,  #residue number
-                        "h" => "A", #chain name
-                        "x" => sprintf("%8s",$roundedx),
-                        "y" => sprintf("%8s",$roundedy),
-                        "z" => sprintf("%8s",$roundedz),
-                    }
+                push @PDB, {
+                    "a" => $ATOM->{a},  #atom type
+                    "n" => $seq[$nt_pos-1],  #residue type
+                    "i" => $nt_pos,  #residue number
+                    "h" => "A", #chain name
+                    "x" => sprintf("%8s",$roundedx),
+                    "y" => sprintf("%8s",$roundedy),
+                    "z" => sprintf("%8s",$roundedz),
+                }
             }
         }
         push @PDB, $nt_temp;    #add the O2' atom back at the end
@@ -1880,23 +1769,23 @@ sub add_KLbend {
               ($ATOM->{a} eq 'O2 ') || ($ATOM->{a} eq 'N4 ') || ($ATOM->{a} eq 'O4 ')) ) ) {
                 $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
 
-                @moved = &rotate_z ("@point",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+            @moved = &rotate_z ("@point",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+            @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+            @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
 
-                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+            @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
 
-                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+            $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
 
-                push @PDB, {
-                    "a" => $ATOM->{a},  #atom type
-                    "n" => $seq[$nt_pos-1],  #residue type
-                    "i" => $nt_pos,  #residue number
-                    "h" => "A", #chain name
-                    "x" => sprintf("%8s",$roundedx),
-                    "y" => sprintf("%8s",$roundedy),
-                    "z" => sprintf("%8s",$roundedz),
-                }
+            push @PDB, {
+                "a" => $ATOM->{a},  #atom type
+                "n" => $seq[$nt_pos-1],  #residue type
+                "i" => $nt_pos,  #residue number
+                "h" => "A", #chain name
+                "x" => sprintf("%8s",$roundedx),
+                "y" => sprintf("%8s",$roundedy),
+                "z" => sprintf("%8s",$roundedz),
+            }
         }
     }
     push @PDB, $nt_temp;    #add the O2' atom back at the end
@@ -2599,7 +2488,6 @@ sub add_kturnb {
 
 }
 
-####################################################
 sub add_bkla {
     $ref_frame_position = $nt_pos;
     @ref_frame_angle = &update_ref_frame($ref_frame_position);
@@ -2766,7 +2654,7 @@ sub add_ninetyb {
 
 }
 
-####################################
+############# END MOTIF PLACEMENTS
 
 sub map {
     @map = ();
@@ -3153,6 +3041,7 @@ sub trace{
             if ( $m[$r-1][$c] eq "r" ) { $d = "right"; $r--;}
         }
     }
+
 
     # print structure
     $input_structure = "";
