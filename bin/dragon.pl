@@ -283,9 +283,6 @@ sub map {
     return @map;
 }
 
-
-
-
 sub randseq {  #returns $randomletter
     my $randompick = int(rand(4));
     if ($randompick == 0){$randomletter = "A";}
@@ -360,19 +357,25 @@ if($generate_sequence eq 'false' ){&printer("I found a sequence!\n");}
 ## Parse the Target string into 2 arrays, 1 with PK and 1 without
 #######
 
+# Define sets of characters for easier checking
+my %pk_chars = map { $_ => 1 } qw([ ] { } A B C D E F G H I J 1 2 3 4 5 6 7 8 9 0);
+my %open_brackets = map { $_ => 1 } qw({ A B C D E F G H I J);
+my %close_brackets = map { $_ => 1 } qw(} 1 2 3 4 5 6 7 8 9 0);
+
 my $targetscrubbed = "";
-foreach(@target){
-    if ($_ eq "[" || $_ eq "]" || $_ eq "{" || $_ eq "}" ||
-        $_ eq "A" || $_ eq "B" || $_ eq "C" || $_ eq "D" || $_ eq "E" || $_ eq "F" || $_ eq "G" || $_ eq "H" || $_ eq "I" || $_ eq "J" ||
-         $_ eq "1" || $_ eq "2" || $_ eq "3" || $_ eq "4" || $_ eq "5" || $_ eq "6" || $_ eq "7" || $_ eq "8" || $_ eq "9" || $_ eq "0") {
-        $targetstring=$targetstring.".";
-    }   ## $targetstring has the PKs as .
-    else {$targetstring=$targetstring.$_;}
 
+foreach my $char (@target) {
+    # Append to targetstring, replacing PK characters with "."
+    $targetstring .= exists $pk_chars{$char} ? "." : $char;
 
-    if ($_ eq "{"  || $_ eq "A" || $_ eq "B" || $_ eq "C" || $_ eq "D" || $_ eq "E" || $_ eq "F" || $_ eq "G" || $_ eq "H" || $_ eq "I" || $_ eq "J" ) { $targetscrubbed=$targetscrubbed."[";}   ## $targetscrubbed has the { as [
-    elsif ($_ eq "}" || $_ eq "1" || $_ eq "2" || $_ eq "3" || $_ eq "4" || $_ eq "5" || $_ eq "6" || $_ eq "7" || $_ eq "8" || $_ eq "9" || $_ eq "0") { $targetscrubbed=$targetscrubbed."]";}
-    else {$targetscrubbed=$targetscrubbed.$_;}
+    # Append to targetscrubbed, translating PK open and close characters
+    if (exists $open_brackets{$char}) {
+        $targetscrubbed .= "[";
+    } elsif (exists $close_brackets{$char}) {
+        $targetscrubbed .= "]";
+    } else {
+        $targetscrubbed .= $char;
+    }
 }
 @target = split(//,$targetscrubbed);   # @target has (.) and [.] but not {
 
