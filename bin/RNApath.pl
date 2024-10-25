@@ -65,13 +65,13 @@ if ( !defined $synthesis_step_size ) { $synthesis_step_size=15; }  # Default num
 if ( !defined $KL_delay ) { $KL_delay=150; }  # Default number of nts delay before KLs snap closed
 
 
-my $eccentricity=.1;  #Determines how much single-stranded regions wobble around (0.5 looks like very random motion)
+my $eccentricity=.35;  #Determines how much single-stranded regions wobble around (0.5 looks like very random motion)
 my $frozen = 0; #this var finds the first base-pair, and freezes the nascent chain before this position so it doesn't wobble too much.
 
 my $nascent_chain = 20;  
 my $stacking_delay = 60;
 
-my $hidden_offset=.01;  #this sets the offset for both x,y,z for the 'hidden' superimposed residues.
+my $hidden_offset=.001;  #this sets the offset for both x,y,z for the 'hidden' superimposed residues.
 						# an offset of 0 leads to divide by zero errors in some ribbon-models in PDB viewers, so it's important
 						# to have his set to a small, but non-zero amount, so the ribbon will have a clear directionality.
 
@@ -459,7 +459,7 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 	my $mpos = 0;
 	$multiloops = 1;
 	for ($i=0; $i<$strand_length;$i++){$multi_mask[$i]="-";}
-	for ($i=0; $i<$strand_length-1; $i++){
+	for ($i=0; $i<($strand_length-1); $i++){
 		if ( ($map[$i] ne ($map[$i+1]+1) ) && ( $map[$i] ne $i ) && $dot_paren_array[$i+1]ne"[" && $dot_paren_array[$i+1]ne"]" && $dot_paren_array[$i+1]ne"." ) {		
 			if (defined $multi[$i]){
 				#&printer(".");
@@ -487,6 +487,15 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 	}
 	
 	my $l=0;	
+	
+	for ($i=0; $i<($strand_length-1); $i++){
+		if (defined $multi[$i]){		#go again and make sure all $multi positions are defined with something
+		}else{
+			$multi[$i]="-";
+		}
+	}
+		
+	
 	for ($i=0; $i<$strand_length; $i++){
 		if ( $dot_paren_array[$i]eq"]" && ( $timesteps > ($i + $KL_delay)  ) ) {
 			for ($p=$map[$i];$p<$i;$p++){
@@ -499,21 +508,13 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 					for (my $l=0; $l<($strand_length-1); $l++){
 						if ($multi[$map[$p]] eq $multi[$l]){$closed_structure[$l]="m";}
 					}					
-				}				
+				}
+								
 				$closed_structure[$p]="L";
 			}
 		}
 	}
 	
-#	if ($timesteps>$strand_length){
-#		my $end_steps = int( (($timesteps-$strand_length)*$strand_length)/($KL_delay*2) );
-#		for ($i=0; $i<$end_steps; $i++){
-#			$closed_structure[$i] = "E";
-#		}
-#		for ($i=$strand_length; $i>($strand_length-$end_steps); $i--){
-#			$closed_structure[$i] = "E";
-#		}
-#	}
 	
 	for ($i=0; $i<$strand_length; $i++){  #now look at the pairs of anything marked closed, and close that and the neighbors of it too.
 		if ( $closed_structure[$i] eq "O" && $closed_structure[$map[$i]] ne "O"){
@@ -521,17 +522,6 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 		}
 	}
 
-####### bug testing outputs
-#	
-#	&printer("REMARK dotpar- $dot_paren \n");
-#	
-#	my $output = join "",(@closed_structure);
-#	&printer("REMARK closed- $output \n");
-#
-#	$output = join "",(@multi_mask);
-#	&printer("REMARK multi - $output \n\n");
-#
-########
 			
 	if($framecount==$keyframes){  #if it's the last time around, all sites are marked 'X' as closed
 		#$name=$name."\_Final";
@@ -650,6 +640,12 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 	$find = quotemeta $find;
 	$parsed_struc =~ s/$find/$replace/g;
 
+	$find = ".";
+	$replace = "A";
+	$find = quotemeta $find;
+	$parsed_struc =~ s/$find/$replace/g;
+
+
 	#Everything remaining is modeled as a nt stacked on helix
 	$find = qr/\W/;
 	$replace = "H";
@@ -670,7 +666,7 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 	
 	#&printer("REMARK - $parsed_struc\n");
 
-	## Now this is clumsy, but we scan over the assembly instruction list and the map and add in 'O' everywhere we have a multi-junction.
+	## Scan over the assembly instruction list and the map and add in 'O' everywhere we have a multi-junction.
 	my $index=0; #index is where the build is currently, tracked separately from synthesized
 	my $k =0; my $count=0;
 	
@@ -791,7 +787,6 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 	my $t = 1;
 	my $seam = 0;
 	my $filecount=1;
-	my $generated_seq = "";  #for bugchecking
 	
 	@input_seq = split(//,$input_sequence);
 	
@@ -805,10 +800,8 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 				print $output_spool "  ";
 				print $output_spool $PDB->{a};
 				print $output_spool "   ";
-				#print $output_spool $PDB->{n};
-				#$generated_seq=$generated_seq.$PDB->{n};
-				
-				print $output_spool $input_seq[$t-1];  #print the fixed input sequence, rather than the sequence generated for each frame that could vary based on locked motifs
+				#print $output_spool $PDB->{n};  #eliminating residue names simplifies some problems that can occur with animations
+				print $output_spool "A"; #just put A for each nucleotide
 				
 				print $output_spool " ";
 				print $output_spool $PDB->{h};  #Retain chain names
@@ -833,9 +826,9 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 				print $output_spool "  ";
 				print $output_spool $PDB->{a};
 				print $output_spool "   ";
-				#print $output_spool $PDB->{n};
+				#print $output_spool $PDB->{n}; #eliminating atom names simplifies some problems that can occur with animations
+				print $output_spool "A"; #just put A for each nucleotide
 				
-				print $output_spool $input_seq[$t-1];  #print the fixed input sequence, rather than the sequence generated for each frame that could vary based on locked motifs
 				
 				print $output_spool " ";
 				print $output_spool $PDB->{h};  #Retain chain names
@@ -851,8 +844,6 @@ for ($framecount=0; $framecount<$keyframes; $framecount++){
 		}
 	}
 	
-	#$generated_seq=$generated_seq."\n";  #for bugchecking
-	#&printer2("S",$generated_seq);       #output sequence at each step for bugchecking
 	
 	close $output_spool;
 	@PDB = ();  ##very important!  Flush out the PDB buffer before the next file is started.
@@ -1030,8 +1021,6 @@ sub add_nascent {
 	foreach $ATOM ( @ATOM ) {			#we scan the datafile for the nt type and paste it into the active site
 		if ( ($ATOM->{n} eq $seq[$nt_pos-1]) && ($ATOM->{h} eq 'A')) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.							
 
-		#	$nt_step[0]=4.884777778;	$nt_step[1]=-0.976222222;	$nt_step[2]=-2.029777778;	$nt_step[3]=1;	#these were measured by nt_diff.pl, averaged from a section of single-strand model
-		#	$angles[0]=-0.785139878+$rand_a;	$angles[1]=0.313181556+$rand_b;	$angles[2]=0.732568308+$rand_c;			
 
 			$nt_step[0]=5.05026531;	$nt_step[1]=0.63351020;	$nt_step[2]=-2.27143878;	$nt_step[3]=1;	#these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
 			$angles[0]=-1.05152505+$rand_a;	$angles[1]=0.46918242+$rand_b;	$angles[2]=1.37954160+$rand_c;			
