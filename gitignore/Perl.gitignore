@@ -43,3 +43,7 @@ inc/
 *.so
 *.dylib
 *.dll
+
+
+bin/.DS_Store
+.DS_Store
