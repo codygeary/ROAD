@@ -192,69 +192,45 @@ for ($i=0; $i<$strand_length; $i++){$motif[$i]=1;} #pre-block all sites, and unc
 
 my $parsed_struc = $input_structure;
 
-$find = qr/.[\^]/;  # temporarily replace "^" with "E" so the strand length is the correct one. This will be updated again with the correct pattern
-$replace = "E"; # Crossover symbols are named E
+$find = qr/.[\^]/;  #temporarily replace "?^" with "E" so the strand length is the correct one  This will be updated again with the correct pattern
+$replace = "E";
 $parsed_struc =~ s/$find/$replace/g;
 
 my @temp_structure = split(//, $parsed_struc);
 
-# Define bKL bipartite patterns
 my @patterns = (
-    [qr/\)\)\[\[\[\[\[\[.\)\)/, "V----------"],  # bKL A
-    [qr/\)\]\]\]\]\]\].\)\)/, "V----------"],    # bKL A - closing KL form
-    [qr/\)\).......\)\)/, "V----------"],        # bKL A unpaired
+    { find => "))[[[[[[.))",  replace => "V----------", marks => ["-", "-", "-", "W"] },
+    { find => "))]]]]]].))",  replace => "V----------", marks => ["-", "-", "-", "W"] },
+    { find => ")).......))",              replace => "V----------", marks => ["-", "-", "-", "W"] },
+    { find => "(.....(",                  replace => "F------",    marks => ["-", "G"] },
+    { find => ").....)",                  replace => "F------",    marks => ["-", "G"] },
+    { find => "(((.........((",           replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
+    { find => "(((.[[[[....((",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
+    { find => "))).........))",           replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
+    { find => "))).[[[[....))",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
 );
 
-# Process bKL patterns
-for my $pair (@patterns) {
-    my ($pattern, $replacement) = @$pair;  # Correctly dereference the array reference
+for my $pattern (@patterns) {
+    my ($find, $replace, $marks) = ($pattern->{find}, $pattern->{replace}, $pattern->{marks});
     my $offset = 0;
-    my $search_pos = index($parsed_struc, $pattern, $offset);
+    my $search_pos = index($parsed_struc, $find, $offset);
 
     while ($search_pos != -1) {
-        # Modify the structure
-        $temp_structure[$map[$search_pos]] = "-";   
-        $temp_structure[$map[$search_pos] - 1] = "-";
-        $temp_structure[$map[$search_pos] - 2] = "-";
-        $temp_structure[$map[$search_pos] - 3] = "W";
+        # Apply marks based on the $map positions
+        for my $i (0..$#$marks) {
+            $temp_structure[$map[$search_pos] - $i] = $marks->[$i];
+        }
         $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $pattern, $offset);
+        $search_pos = index($parsed_struc, $find, $offset);
     }
 
-    # Swap the pattern with the replacement
-    $parsed_struc =~ s/\Q$pattern\E/$replacement/g; 
-    @temp_structure = split(//, $parsed_struc); # Re-split for the next pattern
+    $parsed_struc = join "", @temp_structure;
+    $find = quotemeta $find;
+    $parsed_struc =~ s/$find/$replace/g;
+    @temp_structure = split(//, $parsed_struc);
 }
 
-# Define 90-degree motifs bipartite patterns
-@patterns = (
-    [qr/\(.....\(/, "F------"],  # 90deg motif AACUA
-    [qr/\).....\)/, "F------"],  # 90deg motif AACUA
-);
-
-# Process 90deg motif patterns
-for my $pair (@patterns) {
-    my ($pattern, $replacement) = @$pair;  # Correctly dereference the array reference
-    my $offset = 0;
-    my $search_pos = index($parsed_struc, $pattern, $offset);
-
-    while ($search_pos != -1) {
-        # Modify the structure
-        $temp_structure[$map[$search_pos]] = "-";   
-        $temp_structure[$map[$search_pos] - 1] = "G";
-        $offset = $search_pos + 1;
-        $search_pos = index($parsed_struc, $pattern, $offset);
-    }
-
-    # Swap the pattern with the replacement
-    $parsed_struc =~ s/\Q$pattern\E/$replacement/g; 
-    @temp_structure = split(//, $parsed_struc); # Re-split for the next pattern
-}
-
-# Final parsed structure
-$parsed_struc = join "", @temp_structure;
-
-# Define patterns and their replacements
+#Define patterns and their replacements
 @patterns = (
     ["((((((.(.((((....)))))))))))", "R---------------------------"],   # R - Tar/Tat RNA length
     ["(((((.((((......)))))))))", "N------------------------"],         # N - PP7
@@ -267,12 +243,12 @@ $parsed_struc = join "", @temp_structure;
     ["(.(.........(((((", "U----------------"],                         # U - iSpinach B
     ["(((.......................)))", "Q----------------------------"], # Q - Mango terminal loop
     ["(....)", "T-----"],                                               # T - Tetraloop
-    ["(.........)", "K----------"],                                     # K - KL 9 nt
-    ["(..[[[[[[.)", "K----------"],                                     # K - KL 9 nt
-    ["(..]]]]]].)", "K----------"],                                     # K - KL 9 nt
-    ["(.......)","L--------"],                                          # L - KL 7 nt
-    ["([[[[[[[)", "L--------"],                                         # L - KL 7 nt
-    ["(]]]]]]])", "L--------"],                                         # L - KL 7 nt
+    ["(.........)", "K----------"],                                     # K - 180KL 9 nt
+    ["(..[[[[[[.)", "K----------"],                                     # K - 180KL 9 nt
+    ["(..]]]]]].)", "K----------"],                                     # K - 180KL 9 nt
+    ["(.......)","L--------"],                                          # L - 120KL 7 nt
+    ["([[[[[[[)", "L--------"],                                         # L - 120KL 7 nt
+    ["(]]]]]]])", "L--------"],                                         # L - 120KL 7 nt
     ["(...((", "B-----"],                                               # B - K-turn A
     [")...))", "B-----"],                                               # B - K-turn A
     ["((......(", "C--------"],                                         # C - K-turn B
@@ -340,6 +316,8 @@ my %assembly_actions = (
     'W' => sub { printer("REMARK Add BKL-B $nt_pos-"); add_bklb(); printer("$nt_pos\n"); },
     'F' => sub { printer("REMARK Add 90deg AACUA bend\n"); add_ninetya(); printer("$nt_pos\n"); },
     'G' => sub { printer("REMARK Add 90deg AACUA hinge\n"); add_ninetyb(); printer("$nt_pos\n"); },
+    'I' => sub { printer("REMARK Add AlphaPK loop\n"); add_APKa(); printer("$nt_pos\n"); },
+    'J' => sub { printer("REMARK Add AlphaPK stem\n"); add_APKb(); printer("$nt_pos\n"); },
 );
 
 # Iterate through the assembly instructions
@@ -2651,6 +2629,89 @@ sub add_ninetyb {
     }
 
     $nt_pos += 4;
+
+}
+
+sub add_APKa {
+    $ref_frame_position = $nt_pos;
+    @ref_frame_angle = &update_ref_frame($ref_frame_position);
+
+    for ($i=1;$i<15;$i++) {
+        foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
+            if ( ($ATOM->{h} eq 'I') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+                $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
+                $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
+
+                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
+
+                @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
+                @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
+                @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
+                @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
+
+                @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+
+                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+
+                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+
+                push @PDB, {
+                    "a" => $ATOM->{a},  #atom type
+                    "n" => $ATOM->{n},  #residue type
+                    "i" => $nt_pos-1+$i,  #residue number
+                    "h" => "A", #chain name
+                    "x" => sprintf("%8s",$roundedx),
+                    "y" => sprintf("%8s",$roundedy),
+                    "z" => sprintf("%8s",$roundedz),
+                }
+            }
+        }
+    }
+
+    $nt_pos += 14;
+}
+
+sub add_APKb {
+    $ref_frame_position = $nt_pos;
+    @ref_frame_angle = &update_ref_frame($ref_frame_position);
+
+    for ($i=1;$i<6;$i++) {
+        foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
+            if ( ($ATOM->{h} eq 'J') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+                $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
+                $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
+
+                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
+
+                @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
+                @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
+                @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
+                @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
+
+                @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+
+                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+
+                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+
+                push @PDB, {
+                    "a" => $ATOM->{a},  #atom type
+                    "n" => $ATOM->{n},  #residue type
+                    "i" => $nt_pos-1+$i,  #residue number
+                    "h" => "A", #chain name
+                    "x" => sprintf("%8s",$roundedx),
+                    "y" => sprintf("%8s",$roundedy),
+                    "z" => sprintf("%8s",$roundedz),
+                }
+            }
+        }
+    }
+
+    $nt_pos += 5;
 
 }
 
