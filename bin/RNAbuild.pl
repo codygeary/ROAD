@@ -207,12 +207,12 @@ my @patterns = (
     { find => "((.......((",  replace => "V----------", marks => ["-", "-", "-", "W"] },
     { find => "(.....(",      replace => "F------",    marks => ["-", "G"] },
     { find => ").....)",      replace => "F------",    marks => ["-", "G"] },
-    { find => "(((.........((",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
-    { find => "(((.[[[[....((",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
-    { find => "(((.]]]]....((",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
-    { find => "))).........))",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
-    { find => "))).[[[[....))",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
-    { find => "))).]]]]....))",  replace => "I-------------", marks => ["-", "-", "-", "-", "J"] },
+    { find => "((((.........((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
+    { find => "((((.[[[[....((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
+    { find => "((((.]]]]....((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
+    { find => ")))).........))))",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
+    { find => ")))).[[[[....))))",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
+    { find => ")))).]]]]....))))",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
 );
 
 for my $pattern (@patterns) {
@@ -248,9 +248,9 @@ for my $pattern (@patterns) {
     ["(.(.........(((((", "U----------------"],                         # U - iSpinach B
     ["(((.......................)))", "Q----------------------------"], # Q - Mango terminal loop
     ["(....)", "T-----"],                                               # T - Tetraloop
-    ["(.........)", "K----------"],                                     # K - 180KL 9 nt
-    ["(..[[[[[[.)", "K----------"],                                     # K - 180KL 9 nt
-    ["(..]]]]]].)", "K----------"],                                     # K - 180KL 9 nt
+    ["((.........))", "K------------"],                                 # K - 180KL 9 nt
+    ["((..[[[[[[.))", "K------------"],                                 # K - 180KL 9 nt
+    ["((..]]]]]].))", "K------------"],                                 # K - 180KL 9 nt
     ["(.......)","L--------"],                                          # L - 120KL 7 nt
     ["([[[[[[[)", "L--------"],                                         # L - 120KL 7 nt
     ["(]]]]]]])", "L--------"],                                         # L - 120KL 7 nt
@@ -1313,7 +1313,7 @@ sub add_KL {
             @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
             @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
 
-            @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation
+            @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
             @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
             @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
 
@@ -1342,7 +1342,7 @@ sub add_KL {
               ($ATOM->{a} eq 'N1 ') || ($ATOM->{a} eq 'C2 ') ||
               ($ATOM->{a} eq 'N3 ') || ($ATOM->{a} eq 'C4 ') ||
               ($ATOM->{a} eq 'O6 ') || ($ATOM->{a} eq 'N2 ') ||
-              ($ATOM->{a} eq 'O2 ') || ($ATOM->{a} eq 'N4 ') || ($ATOM->{a} eq 'O4 ') )  ) ) {
+              ($ATOM->{a} eq 'O2 ') || ($ATOM->{a} eq 'N4 ') || ($ATOM->{a} eq 'O4 ')) ) ) {
 
             $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
             $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
@@ -1374,121 +1374,9 @@ sub add_KL {
         }
     }
     push @PDB, $nt_temp;    #add the O2' atom back at the end
-
-    for ($i=2;$i<4;$i++) {    #this puts the -AA- bulge in
+    for ($i=2;$i<13;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
-            if ( ($ATOM->{h} eq 'K') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
-                $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
-                $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
-
-                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
-
-                @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
-                @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
-                @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
-
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
-
-                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
-
-                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
-
-                push @PDB, {
-                    "a" => $ATOM->{a},  #atom type
-                    "n" => $ATOM->{n},  #residue type
-                    "i" => $nt_pos+($i-1),  #residue number
-                    "h" => "A", #chain name
-                    "x" => sprintf("%8s",$roundedx),
-                    "y" => sprintf("%8s",$roundedy),
-                    "z" => sprintf("%8s",$roundedz),
-                }
-            }
-        }
-    }
-
-    for ($i=4; $i<10; $i++){    #now it puts the programmable part in
-        $ref_frame_position = $nt_pos;
-        @ref_frame_angle = &update_ref_frame($ref_frame_position);
-
-        foreach $ATOM ( @ATOM ) {           #Copy the backbone of resi 4 of this motif,  o2' has to come at the end, so we pop it off at the end.
-            if ( ($ATOM->{h} eq 'K')  &&  ($ATOM->{i} == $i) )  {
-
-                $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
-                $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
-
-                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
-
-                @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
-                @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
-                @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
-
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
-
-                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
-
-                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
-
-                push @PDB, {
-                    "a" => $ATOM->{a},  #atom type
-                    "n" => $seq[$nt_pos+$i-1-1],  #residue type
-                    "i" => $nt_pos+$i-1,  #residue number
-                    "h" => "A", #chain name
-                    "x" => sprintf("%8s",$roundedx),
-                    "y" => sprintf("%8s",$roundedy),
-                    "z" => sprintf("%8s",$roundedz),
-                }
-            }
-        }
-        $nt_temp = pop @PDB;        #remove the O2' atom
-
-        $ref_frame_position = $nt_pos+$i;
-        @ref_frame_angle = &update_ref_frame($ref_frame_position);
-
-        foreach $ATOM ( @ATOM ) {                       #copy only the base atoms from the lib
-            if (  ($ATOM->{h} eq 'A')  &&  ($ATOM->{n} eq $seq[$nt_pos+$i-1-1]) &&
-                ( ($ATOM->{a} eq 'N9 ') || ($ATOM->{a} eq 'C8 ') ||
-                  ($ATOM->{a} eq 'N7 ') || ($ATOM->{a} eq 'C5 ') ||
-                  ($ATOM->{a} eq 'C6 ') || ($ATOM->{a} eq 'N6 ') ||
-                  ($ATOM->{a} eq 'N1 ') || ($ATOM->{a} eq 'C2 ') ||
-                  ($ATOM->{a} eq 'N3 ') || ($ATOM->{a} eq 'C4 ') ||
-                  ($ATOM->{a} eq 'O6 ') || ($ATOM->{a} eq 'N2 ') ||
-                  ($ATOM->{a} eq 'O2 ') || ($ATOM->{a} eq 'N4 ') || ($ATOM->{a} eq 'O4 ') )  ) {
-                    $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
-
-                    @moved = &rotate_z ("@point",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                    @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                    @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
-
-                    @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
-
-                    $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
-
-                    push @PDB, {
-                        "a" => $ATOM->{a},  #atom type
-                        "n" => $seq[$nt_pos+$i-1-1],  #residue type
-                        "i" => $nt_pos+$i-1,  #residue number
-                        "h" => "A", #chain name
-                        "x" => sprintf("%8s",$roundedx),
-                        "y" => sprintf("%8s",$roundedy),
-                        "z" => sprintf("%8s",$roundedz),
-                    }
-            }
-        }
-        push @PDB, $nt_temp;    #add the O2' atom back at the end
-    }
-
-    $ref_frame_position = $nt_pos;
-    @ref_frame_angle = &update_ref_frame($ref_frame_position);
-
-    for ($i=10;$i<11;$i++) {
-        foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
-            if ( ($ATOM->{h} eq 'K') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+            if ( ($ATOM->{h} eq 'K') &&  ($ATOM->{i} == $i) && ($ATOM->{n} eq $seq[$nt_pos-1]) ) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
                 $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
 
@@ -1519,10 +1407,11 @@ sub add_KL {
             }
         }
     }
-    $nt_pos += 10;
 
-    foreach $ATOM ( @ATOM ) {           #Copy the backbone of the last resi of this motif,  o2' has to come at the end, so we pop it off at the end.
-        if ( ($ATOM->{h} eq 'K')  &&  ($ATOM->{i} == 11) )  {
+    $nt_pos += 12;
+
+    foreach $ATOM ( @ATOM ) {           #Copy the backbone of resi 1 of this motif,  o2' has to come at the end, so we pop it off at the end.
+        if ( ($ATOM->{h} eq 'K')  &&  ($ATOM->{i} == 13) )  {
 
             $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
             $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
@@ -1589,6 +1478,7 @@ sub add_KL {
         }
     }
     push @PDB, $nt_temp;    #add the O2' atom back at the end
+
     $nt_pos += 1;
 }
 
@@ -2641,7 +2531,7 @@ sub add_APKa {
     $ref_frame_position = $nt_pos;
     @ref_frame_angle = &update_ref_frame($ref_frame_position);
 
-    for ($i=1;$i<15;$i++) {
+    for ($i=1;$i<18;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
             if ( ($ATOM->{h} eq 'I') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
@@ -2675,14 +2565,14 @@ sub add_APKa {
         }
     }
 
-    $nt_pos += 14;
+    $nt_pos += 17;
 }
 
 sub add_APKb {
     $ref_frame_position = $nt_pos;
     @ref_frame_angle = &update_ref_frame($ref_frame_position);
 
-    for ($i=1;$i<6;$i++) {
+    for ($i=1;$i<9;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
             if ( ($ATOM->{h} eq 'J') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
@@ -2716,7 +2606,7 @@ sub add_APKb {
         }
     }
 
-    $nt_pos += 5;
+    $nt_pos += 8;
 
 }
 
