@@ -355,8 +355,8 @@ sub calculate_tm {
         "AT" => [-6.5, -18.8], "TA" => [-6.3, -18.5],
         "CA" => [-7.4, -19.3], "TG" => [-7.4, -19.3],
         "GT" => [-8.6, -23.0], "AC" => [-8.6, -23.0],
-        "CT" => [-6.1, -16.1], "GA" => [-6.1, -16.1],
-        "GA" => [-7.7, -20.3], "CT" => [-7.7, -20.3],
+        "CT" => [-6.1, -16.1], "AG" => [-6.1, -16.1],
+        "GA" => [-7.7, -20.3], "TC" => [-7.7, -20.3],
         "CG" => [-10.1, -25.5], "GC" => [-11.1, -28.4],
         "GG" => [-6.7, -15.6], "CC" => [-6.7, -15.6],
     );
@@ -420,9 +420,9 @@ sub calculate_tm {
 
     # Calculate Tm
     my $R = 1.987; # Gas constant in cal/(mol·K)
-    my $strand_conc = 500e-9; # Primer concentration 500 nM
-    my $salt_conc = 0.1;      # Salt concentration 100 mM (KCl)
-    my $mg_conc = 5e-3;       # Mg concentration 5 mM
+    my $strand_conc = 1000e-9; # Primer concentration 1 uM
+    my $salt_conc = 0.05;      # Salt concentration 50 mM (KCl)
+    my $mg_conc = 2e-3;       # Mg concentration 2 mM
 
     # Salt correction for Tm
     my $effective_salt = $salt_conc + 3.3 * sqrt($mg_conc);  # Adjust for Mg2+
