@@ -92,24 +92,49 @@ foreach my $pair (@pairings) {
         my $alignment = $result->{alignment};
         $result->{tm} = calculate_tm($template_context, $primer_context, $alignment);  # Compute Tm
     }
-
-# Filter results to keep only the highest Tm for nearby offsets
-@results = sort { $b->{tm} <=> $a->{tm} || $a->{offset} <=> $b->{offset} } @results; # Sort by Tm descending, then by offset ascending
-
-my @filtered_results;
-my $last_result;
-
-foreach my $result (@results) {
-    if (defined $last_result && abs($result->{offset} - $last_result->{offset}) <= 1) {
-        # If within the offset window, keep the one with the higher Tm (already sorted by Tm)
-        next;
+    
+    # Sort results by Tm descending, then by offset ascending
+    @results = sort { $b->{tm} <=> $a->{tm} || $a->{offset} <=> $b->{offset} } @results;
+    
+    my @filtered_results;
+    my @offsets;  # Keep track of offsets in parallel with @filtered_results
+    
+    foreach my $result (@results) {
+        my $offset = $result->{offset};
+        # Binary search to find the insertion point
+        my ($left, $right) = (0, scalar @offsets);
+        while ($left < $right) {
+            my $mid = int(($left + $right) / 2);
+            if ($offsets[$mid] < $offset) {
+                $left = $mid + 1;
+            } else {
+                $right = $mid;
+            }
+        }
+        # Check for nearby offsets
+        my $has_nearby = 0;
+        if ($left < @offsets && abs($offsets[$left] - $offset) <= 1) {
+            $has_nearby = 1;
+            # Replace if the new Tm is higher
+            if ($result->{tm} > $filtered_results[$left]->{tm}) {
+                $filtered_results[$left] = $result;
+                $offsets[$left] = $offset;
+            }
+        } elsif ($left > 0 && abs($offsets[$left - 1] - $offset) <= 1) {
+            $has_nearby = 1;
+            if ($result->{tm} > $filtered_results[$left - 1]->{tm}) {
+                $filtered_results[$left - 1] = $result;
+                $offsets[$left - 1] = $offset;
+            }
+        }
+        # Add to filtered results if no nearby offset
+        unless ($has_nearby) {
+            splice @offsets, $left, 0, $offset;
+            splice @filtered_results, $left, 0, $result;
+        }
     }
-    # Otherwise, add to the filtered results
-    push @filtered_results, $result;
-    $last_result = $result; # Update last result
-}
-
-@results = @filtered_results;
+    
+    @results = @filtered_results;
 
     # Filter out results below the minimum Tm threshold
     @results = grep { $_->{tm} >= $min_tm } @results;
