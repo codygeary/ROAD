@@ -7,11 +7,9 @@ use Data::Dumper;
 my $fasta_file = shift @ARGV or die "Usage: $0 <input.fasta>\n";
 
 # Parameters
-my $bulge_penalty = 3;     # Penalty for a bulge in Tm calculation
-my $min_tm = 40;           # Tm threshold
-my $min_complementary = 6; # Minimum number of complementary bases to report
-my $context_window = 5;    # Number of neighboring bases for context
-my $top_results = 20;      # Number of top results to display for each group
+my $min_tm = 4;           # Tm threshold
+my $min_complementary = 4; # Minimum number of complementary bases to report
+my $top_results = 10;      # Number of top results to display for each group
 
 # Parse FASTA
 my @sequences = parse_fasta($fasta_file);
@@ -39,10 +37,10 @@ $template->{rev} = reverse($template->{seq}); # Reverse the template as well
 my @primer1_variants = generate_bulged_variants($primer1->{seq});
 my @primer2_variants = generate_bulged_variants($primer2->{seq});
 
-# Debug: Parsed sequences and bulged variants
-print "Debug: Parsed sequences:\n", Dumper(\@sequences);
-print "Debug: Primer1 Variants:\n", Dumper(\@primer1_variants);
-print "Debug: Primer2 Variants:\n", Dumper(\@primer2_variants);
+# # Debug: Parsed sequences and bulged variants
+# print "Debug: Parsed sequences:\n", Dumper(\@sequences);
+# print "Debug: Primer1 Variants:\n", Dumper(\@primer1_variants);
+# print "Debug: Primer2 Variants:\n", Dumper(\@primer2_variants);
 
 # Create a smart output file name based on the input file name
 my ($input_base) = $fasta_file =~ /([^\/\\]+)\.[^.]+$/;  # Extract the base name (excluding path and extension)
@@ -53,12 +51,12 @@ open my $out, '>', $output_file or die "Could not write to $output_file: $!\n";
 print "Output will be saved to: $output_file\n";
 
 # Write template and primers to output file
-print $out ">Template\n$template->{seq}\n";
-print $out ">Reverse_Complement\n$template->{revcom}\n";
-print $out ">$primer1->{name}\n$primer1->{seq}\n";
-print $out ">Reverse_$primer1->{name}\n$primer1->{rev}\n";
-print $out ">$primer2->{name}\n$primer2->{seq}\n";
-print $out ">Reverse_$primer2->{name}\n$primer2->{rev}\n";
+print $out ">Primer1: $primer1->{name}\n$primer1->{seq}\n";
+print $out ">Reverse_$primer1->{name}\n$primer1->{rev}\n\n";
+print $out ">Primer2: $primer2->{name}\n$primer2->{seq}\n";
+print $out ">Reverse_$primer2->{name}\n$primer2->{rev}\n\n";
+print $out ">Template: $template->{name}\n$template->{seq}\n";
+print $out ">Reverse_Complement\n$template->{revcom}\n\n";
 
 # Initialize annotation arrays for the dsDNA
 my $template_annotation = ' ' x length($template->{seq});    # Top strand annotation
@@ -87,7 +85,38 @@ foreach my $pair (@pairings) {
         push @results, find_complementary_matches($template_seq, $reversed_primer_seq);
     }
 
-    @results = sort { $b->{tm} <=> $a->{tm} } @results;  # Sort by Tm descending
+    # Calculate Tm for each result
+    foreach my $result (@results) {
+        my $template_context = $result->{template_context};
+        my $primer_context = reverse_complement($result->{primer_context});  # Reverse complement to original direction
+        my $alignment = $result->{alignment};
+        $result->{tm} = calculate_tm($template_context, $primer_context, $alignment);  # Compute Tm
+    }
+
+# Filter results to keep only the highest Tm for nearby offsets
+@results = sort { $b->{tm} <=> $a->{tm} || $a->{offset} <=> $b->{offset} } @results; # Sort by Tm descending, then by offset ascending
+
+my @filtered_results;
+my $last_result;
+
+foreach my $result (@results) {
+    if (defined $last_result && abs($result->{offset} - $last_result->{offset}) <= 1) {
+        # If within the offset window, keep the one with the higher Tm (already sorted by Tm)
+        next;
+    }
+    # Otherwise, add to the filtered results
+    push @filtered_results, $result;
+    $last_result = $result; # Update last result
+}
+
+@results = @filtered_results;
+
+    # Filter out results below the minimum Tm threshold
+    @results = grep { $_->{tm} >= $min_tm } @results;
+
+    # Sort filtered results by Tm (descending)
+    @results = sort { $b->{tm} <=> $a->{tm} } @results;
+
     splice(@results, $top_results) if @results > $top_results;  # Keep only top results
 
     # Annotate binding sites only for relevant pairings
@@ -113,12 +142,20 @@ foreach my $pair (@pairings) {
     }
 
     # Write analysis results
-    print $out "\n# $label (Top $top_results Tm)\n";
+    print $out "\n# $label\n";
     print $out "# Specific Sequences: $template_name, $primer_name\n\n";
 
     foreach my $result (@results) {
+        # Extract template and primer contexts for Tm calculation
+        my $template_context = $result->{template_context};
+        my $primer_context = reverse_complement($result->{primer_context});
+        my $alignment = $result->{alignment};
+
+        # Retrieve already computed Tm
+        my $tm = $result->{tm};
+
         # Add 5- and -3 to the sequences
-        my $template_with_direction = "5-" . $result->{template_context} . "-3";
+        my $template_with_direction = "5-" . $template_context . "-3";
         my $primer_with_direction = "3-" . $result->{primer_context} . "-5";
 
         # Calculate the padding for alignment
@@ -127,74 +164,24 @@ foreach my $pair (@pairings) {
         my $primer_padding = ' ' x 2;
 
         # Adjust the alignment to account for the `5-` marker
-        my $adjusted_alignment = (' ' x 2) . (' ' x 2) . $result->{alignment};
+        my $adjusted_alignment = (' ' x 2) . (' ' x 2) . $alignment;
 
-        # Ensure proper padding between markers and sequences
-        $template_with_direction = "5-" . $result->{template_context} . "-3";
-        $primer_with_direction = "3-" . $result->{primer_context} . "-5";
-
-        print $out "Tm:$result->{tm}_Offset:$result->{offset}\n";
+        # Format and output the results
+        my $formatted_tm = sprintf("%.1f", $tm);  # Round Tm to 1 decimal place
+        print $out "Tm: $formatted_tm °C   Offset: $result->{offset}\n";
         print $out "$template_padding$template_with_direction\n";
         print $out "$adjusted_alignment\n";
         print $out "$primer_padding$primer_with_direction\n\n";
     }
 }
 
-# Annotate the sequence with binding sites
-sub annotate_binding_sites {
-    my ($result, $annotation_ref, $marker) = @_;
-    my $offset = $result->{offset};
-    my $alignment = $result->{alignment};
-    my $primer_len = length($alignment);  # Alignment length matches the primer length
-
-    for my $i (0 .. $primer_len - 1) {
-        if (substr($alignment, $i, 1) eq ':') {
-            # Only annotate positions with base-pairing
-            my $current_char = substr($$annotation_ref, $offset + $i, 1);
-            if ($current_char eq ' ') {
-                substr($$annotation_ref, $offset + $i, 1) = $marker;
-            } elsif (($current_char ne $marker)) {
-                substr($$annotation_ref, $offset + $i, 1) = 'X';  # Overlap as 'X'
-            }
-        }
-    }
-}
-
-# Reverse a string while preserving spacing alignment
-sub reverse_with_padding {
-    my ($string) = @_;
-    my $reversed = reverse($string);
-    return $reversed;
-}
-
-# Output the annotated dsDNA
-sub output_annotated_dsDNA {
-    my ($template, $template_annotation, $revcom_annotation) = @_;
-
-    # Reverse the reverse complement and its annotation for proper alignment
-    my $reversed_revcom = reverse($template->{revcom});
-    my $reversed_annotation = reverse_with_padding($revcom_annotation);
-
-    # Create the base-pairing line
-    my $base_pairing = '';
-    for my $i (0 .. length($template->{seq}) - 1) {
-        $base_pairing .= ':';
-    }
-
-    print $out "\n# Annotated dsDNA\n";
-    print $out "$template_annotation\n";
-    print $out "   5-" . $template->{seq} . "-3\n";
-    print $out "     $base_pairing\n";
-    print $out "   3-" . $reversed_revcom . "-5\n";
-    print $out "     $reversed_annotation\n";
-}
 
 # After performing analysis, output the annotated dsDNA
 output_annotated_dsDNA($template, $template_annotation, $revcom_annotation);
 
 close $out;
 
-# --- Subroutines ---
+### --- Subroutines ---
 
 # Generate bulged variants of a sequence
 sub generate_bulged_variants {
@@ -212,7 +199,6 @@ sub generate_bulged_variants {
 
     return @variants;
 }
-
 
 # Parse FASTA file
 sub parse_fasta {
@@ -270,14 +256,14 @@ sub find_complementary_matches {
             # Compute the context before and after the aligned region
             my $before_context = '';
             my $after_context = '';
-            if ($offset >= $context_window) {
-                $before_context = substr($template_seq, $offset - $context_window, $context_window);
+            if ($offset >= 0) {
+                $before_context = substr($template_seq, $offset, 0);
             } else {
-                $before_context = (' ' x ($context_window - $offset)) . substr($template_seq, 0, $offset);
+                $before_context = (' ' x (0 - $offset)) . substr($template_seq, 0, $offset);
             }
 
-            if ($offset + $primer_len + $context_window <= $template_len) {
-                $after_context = substr($template_seq, $offset + $primer_len, $context_window);
+            if ($offset + $primer_len <= $template_len) {
+                $after_context = substr($template_seq, $offset + $primer_len, 0);
             } else {
                 $after_context = substr($template_seq, $offset + $primer_len);
             }
@@ -326,11 +312,6 @@ sub calculate_complementary {
         }
     }
 
-    # Apply bulge penalty if '-' exists in the primer
-    if ($primer_seq =~ /-/) {
-        $tm -= $bulge_penalty;
-    }
-
     return ($alignment, $complementary_count, $tm);
 }
 
@@ -340,4 +321,141 @@ sub is_complementary {
     return ($b1 eq 'A' && $b2 eq 'T') || ($b1 eq 'T' && $b2 eq 'A') ||
            ($b1 eq 'C' && $b2 eq 'G') || ($b1 eq 'G' && $b2 eq 'C');
 }
+
+# Function to calculate Tm with SantaLucia1996 parameters
+sub calculate_tm {  
+    # Nearest-neighbor parameters (enthalpy in kcal/mol, entropy in cal/(mol·K))
+    my %nn_params = (
+        "AA" => [-8.4, -23.6], "TT" => [-8.4, -23.6],
+        "AT" => [-6.5, -18.8], "TA" => [-6.3, -18.5],
+        "CA" => [-7.4, -19.3], "TG" => [-7.4, -19.3],
+        "GT" => [-8.6, -23.0], "AC" => [-8.6, -23.0],
+        "CT" => [-6.1, -16.1], "GA" => [-6.1, -16.1],
+        "GA" => [-7.7, -20.3], "CT" => [-7.7, -20.3],
+        "CG" => [-10.1, -25.5], "GC" => [-11.1, -28.4],
+        "GG" => [-6.7, -15.6], "CC" => [-6.7, -15.6],
+    );
+    
+    # Penalties and corrections for initiation and terminal effects
+    my %penalties = (
+        "initiation_AT" => [0, -9.0],  # A•T initiation enthalpy and entropy
+        "initiation_GC" => [0, -5.9],  # G•C initiation enthalpy and entropy
+        "symmetry"      => [0, -1.4],  # Symmetry correction
+        "terminal_TA"   => [0.4, 0.0], # Penalty for terminal T•A
+    );
+
+    my ($template_seq, $primer_seq, $alignment) = @_;
+
+    # Initialize enthalpy and entropy
+    my ($total_dh, $total_ds) = (0, 0);
+
+    # Add initiation penalty based on GC content
+    if ($template_seq =~ /G|C/) {
+        $total_dh += $penalties{"initiation_GC"}->[0];
+        $total_ds += $penalties{"initiation_GC"}->[1];
+    } else {
+        $total_dh += $penalties{"initiation_AT"}->[0];
+        $total_ds += $penalties{"initiation_AT"}->[1];
+    }
+
+    # Evaluate each nearest-neighbor pair in the alignment
+    for my $i (0 .. length($template_seq) - 2) {
+        my $template_pair = substr($template_seq, $i, 2);
+        my $primer_pair = substr($primer_seq, $i, 2);
+        my $align_char = substr($alignment, $i, 1);
+
+        if ($align_char eq ':') {
+            # Perfect match
+            if (exists $nn_params{$template_pair}) {
+                $total_dh += $nn_params{$template_pair}->[0];
+                $total_ds += $nn_params{$template_pair}->[1];
+            }
+        } elsif ($align_char eq '-') {
+            # Bulge penalty
+            $total_dh += 0.2;
+            $total_ds += -5.7;
+        } else {
+            # Mismatch penalty (not provided in this dataset, approximate with bulge penalty)
+            $total_dh += 0.2;
+            $total_ds += -5.7;
+        }
+    }
+
+    # Add terminal penalties (for example, T•A)
+    if ($template_seq =~ /^T|A$/) {
+        $total_dh += $penalties{"terminal_TA"}->[0];
+        $total_ds += $penalties{"terminal_TA"}->[1];
+    }
+
+    # Add symmetry correction for self-complementary sequences
+    if ($template_seq eq reverse_complement($template_seq)) {
+        $total_dh += $penalties{"symmetry"}->[0];
+        $total_ds += $penalties{"symmetry"}->[1];
+    }
+
+    # Calculate Tm
+    my $R = 1.987; # Gas constant in cal/(mol·K)
+    my $strand_conc = 500e-9; # Primer concentration 500 nM
+    my $salt_conc = 0.1;      # Salt concentration 100 mM (KCl)
+    my $mg_conc = 5e-3;       # Mg concentration 5 mM
+
+    # Salt correction for Tm
+    my $effective_salt = $salt_conc + 3.3 * sqrt($mg_conc);  # Adjust for Mg2+
+    my $salt_correction = 16.6 * log($effective_salt) / log(10);
+
+    # Calculate Tm (convert ΔH from kcal/mol to cal/mol)
+    my $tm = (($total_dh * 1000) / ($total_ds + ($R * log($strand_conc)))) - 273.15 + $salt_correction;
+
+    return $tm;
+}
+
+# Annotate the sequence with binding sites
+sub annotate_binding_sites {
+    my ($result, $annotation_ref, $marker) = @_;
+    my $offset = $result->{offset};
+    my $alignment = $result->{alignment};
+    my $primer_len = length($alignment);  # Alignment length matches the primer length
+
+    for my $i (0 .. $primer_len - 1) {
+        if (substr($alignment, $i, 1) eq ':') {
+            # Only annotate positions with base-pairing
+            my $current_char = substr($$annotation_ref, $offset + $i, 1);
+            if ($current_char eq ' ') {
+                substr($$annotation_ref, $offset + $i, 1) = $marker;
+            } elsif (($current_char ne $marker)) {
+                substr($$annotation_ref, $offset + $i, 1) = 'X';  # Overlap as 'X'
+            }
+        }
+    }
+}
+
+# Reverse a string while preserving spacing alignment
+sub reverse_with_padding {
+    my ($string) = @_;
+    my $reversed = CORE::reverse($string);  # Explicitly call the built-in reverse function
+    return $reversed;
+}
+
+# Output the annotated dsDNA
+sub output_annotated_dsDNA {
+    my ($template, $template_annotation, $revcom_annotation) = @_;
+
+    # Reverse the reverse complement and its annotation for proper alignment
+    my $reversed_revcom = CORE::reverse($template->{revcom});  # Explicitly call CORE::reverse
+    my $reversed_annotation = reverse_with_padding($revcom_annotation);
+    
+    # Create the base-pairing line
+    my $base_pairing = '';
+    for my $i (0 .. length($template->{seq}) - 1) {
+        $base_pairing .= ':';
+    }
+
+    print $out "\n# Annotated dsDNA\n";
+    print $out "     $template_annotation\n";
+    print $out "   5-" . $template->{seq} . "-3\n";
+    print $out "     $base_pairing\n";
+    print $out "   3-" . $reversed_revcom . "-5\n";
+    print $out "     $reversed_annotation\n";
+}
+
 
