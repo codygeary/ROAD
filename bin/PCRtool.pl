@@ -7,9 +7,9 @@ use Data::Dumper;
 my $fasta_file = shift @ARGV or die "Usage: $0 <input.fasta>\n";
 
 # Parameters
-my $min_tm = 4;           # Tm threshold
-my $min_complementary = 4; # Minimum number of complementary bases to report
-my $top_results = 10;      # Number of top results to display for each group
+my $min_tm = 15;           # Tm threshold
+my $min_complementary = 6; # Minimum number of complementary bases to report
+my $top_results = 20;      # Number of top results to display for each group
 
 # Parse FASTA
 my @sequences = parse_fasta($fasta_file);
@@ -34,13 +34,15 @@ $primer2->{rev} = reverse($primer2->{seq});
 $template->{rev} = reverse($template->{seq}); # Reverse the template as well
 
 # Generate variants with a single bulge for each primer
-my @primer1_variants = generate_bulged_variants($primer1->{seq});
-my @primer2_variants = generate_bulged_variants($primer2->{seq});
+my @primer1_variants = generate_variants($primer1->{seq}, $min_complementary);
+my @primer2_variants = generate_variants($primer2->{seq}, $min_complementary);
+my @primer1_trunc = generate_truncations($primer1->{seq}, $min_complementary);
+my @primer2_trunc = generate_truncations($primer2->{seq}, $min_complementary);
 
 # # Debug: Parsed sequences and bulged variants
-# print "Debug: Parsed sequences:\n", Dumper(\@sequences);
-# print "Debug: Primer1 Variants:\n", Dumper(\@primer1_variants);
-# print "Debug: Primer2 Variants:\n", Dumper(\@primer2_variants);
+print "Debug: Parsed sequences:\n", Dumper(\@sequences);
+print "Debug: Primer1 Variants:\n", Dumper(\@primer1_variants);
+print "Debug: Primer2 Variants:\n", Dumper(\@primer2_variants);
 
 # Create a smart output file name based on the input file name
 my ($input_base) = $fasta_file =~ /([^\/\\]+)\.[^.]+$/;  # Extract the base name (excluding path and extension)
@@ -69,8 +71,8 @@ my @pairings = (
     [$template->{seq},         \@primer2_variants, $template->{name}, $primer2->{name}, "Template vs Reverse"],
     [$template->{revcom},      \@primer2_variants, "Reverse Complement of $template->{name}", $primer2->{name}, "Reverse Complement vs Reverse"],
     [$primer1->{seq},          \@primer2_variants, $primer1->{name}, $primer2->{name}, "Fwd vs Reverse"],
-    [$primer1->{seq},          \@primer1_variants, $primer1->{name}, "$primer1->{name} Self", "Fwd Self"],
-    [$primer2->{seq},          \@primer2_variants, $primer2->{name}, "$primer2->{name} Self", "Rev Self"],
+    [$primer1->{seq},          \@primer1_trunc, $primer1->{name}, "$primer1->{name} Self", "Fwd Self"],
+    [$primer2->{seq},          \@primer2_trunc, $primer2->{name}, "$primer2->{name} Self", "Rev Self"],
 );
 
 # Perform analysis
@@ -200,6 +202,90 @@ foreach my $pair (@pairings) {
     }
 }
 
+##### Palindrome analysis
+
+# Perform self-complementarity (palindrome) analysis on template sequence
+print "Performing self-complementarity (palindrome) analysis on template sequence...\n";
+
+my $sequence = $template->{seq};
+my $seq_length = length($sequence);
+my $max_palindrome_length = 0;
+my @longest_palindromes;
+
+# Iterate from the longest possible substring down to the minimum complementary length
+for (my $len = $seq_length; $len >= $min_complementary; $len--) {
+    for (my $i = 0; $i <= $seq_length - $len; $i++) {
+        my $substr = substr($sequence, $i, $len);
+        my $revcomp = reverse_complement($substr);
+        if ($substr eq $revcomp) {
+            if ($len > $max_palindrome_length) {
+                $max_palindrome_length = $len;
+                @longest_palindromes = ();
+            }
+            if ($len == $max_palindrome_length) {
+                push @longest_palindromes, {
+                    sequence => $substr,
+                    offset   => $i,
+                };
+            }
+        }
+    }
+    # If we have found at least one palindrome of current length, no need to check shorter lengths
+    if ($max_palindrome_length > 0) {
+        last;
+    }
+}
+
+# Calculate Tm for each longest palindrome
+my @palindrome_results;
+foreach my $pal (@longest_palindromes) {
+    my $pal_seq = $pal->{sequence};
+    # Create an alignment string of ':' for perfect complementarity
+    my $alignment_str = ':' x length($pal_seq);
+    my $tm = calculate_tm($pal_seq, $pal_seq, $alignment_str);
+    push @palindrome_results, {
+        sequence => $pal_seq,
+        offset   => $pal->{offset},
+        tm       => $tm,
+    };
+}
+
+# Sort results by Tm descending
+@palindrome_results = sort { $b->{tm} <=> $a->{tm} } @palindrome_results;
+
+# Keep only top results
+splice(@palindrome_results, $top_results) if @palindrome_results > $top_results;
+
+# Annotate self-complementary binding sites
+foreach my $result (@palindrome_results) {
+    my $offset = $result->{offset};
+    my $len    = length($result->{sequence});
+    for my $i (0 .. $len - 1) {
+        substr($template_annotation, $offset + $i, 1) = 'P';
+    }
+}
+
+# Write self-complementarity analysis results
+print $out "\n# Self-Complementarity (Palindrome) Analysis\n";
+print $out "# Longest Self-Complementary Sequences in Template\n\n";
+
+foreach my $result (@palindrome_results) {
+    my $pal_seq = $result->{sequence};
+    my $offset  = $result->{offset};
+    my $tm      = $result->{tm};
+    
+    # Add 5- and -3 to the sequences for display
+    my $pal_with_direction = "5-" . $pal_seq . "-3";
+    
+    # Format and output the results
+    my $formatted_tm = sprintf("%.1f", $tm);  # Round Tm to 1 decimal place
+    print $out "Tm: $formatted_tm °C   Offset: $offset\n";
+    print $out "$pal_with_direction\n\n";
+}
+
+
+
+#####
 
 # After performing analysis, output the annotated dsDNA
 output_annotated_dsDNA($template, $template_annotation, $revcom_annotation);
@@ -209,17 +295,40 @@ close $out;
 ### --- Subroutines ---
 
 # Generate bulged variants of a sequence
-sub generate_bulged_variants {
-    my ($seq) = @_;
+sub generate_variants {
+    my ($seq, $min_complementary) = @_;
     my @variants;
 
     # Add the original sequence as the first variant
     push @variants, $seq;
 
-    # Generate variants with a bulge
+    # Generate bulged variants
     for my $i (1 .. length($seq) - 1) { # Start at position 1, ignore end-of-sequence bulge
         my $variant = substr($seq, 0, $i) . '-' . substr($seq, $i);
         push @variants, $variant;
+    }
+
+    return @variants;
+}
+
+# Generate truncated variants of a sequence
+sub generate_truncations {
+    my ($seq, $min_complementary) = @_;
+    my @variants;
+
+    # Add the original sequence as the first variant
+    push @variants, $seq;
+
+    # Generate 5' truncated variants (shortened from the 5' end)
+    for my $i (1 .. length($seq) - $min_complementary) { # Ensure minimum length
+        my $variant = substr($seq, $i);
+        push @variants, $variant if $variant ne ''; # Avoid empty strings
+    }
+
+    # Generate 3' truncated variants (shortened from the 3' end)
+    for my $i (1 .. length($seq) - $min_complementary) { # Ensure minimum length
+        my $variant = substr($seq, 0, length($seq) - $i);
+        push @variants, $variant if $variant ne ''; # Avoid empty strings
     }
 
     return @variants;
@@ -482,5 +591,3 @@ sub output_annotated_dsDNA {
     print $out "   3-" . $reversed_revcom . "-5\n";
     print $out "     $reversed_annotation\n";
 }
-
-
