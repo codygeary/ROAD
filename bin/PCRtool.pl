@@ -13,7 +13,7 @@ my $top_results = 20;      # Number of top results to display for each group
 
 # Parse FASTA
 my @sequences = parse_fasta($fasta_file);
-die "Input FASTA file must contain exactly 3 sequences: Forward, Reverse and Template\n\n>Forward_Primer\nNNNNNNNNNN\n>Reverse_Primer\nNNNNNNNNNN\n>Template_Strand\nNNNNNNNNNNNNNNNNNN\n";
+die "Input FASTA file must contain exactly 3 sequences: Forward, Reverse and Template\n\n>Forward_Primer\nNNNNNNNNNN\n>Reverse_Primer\nNNNNNNNNNN\n>Template_Strand\nNNNNNNNNNNNNNNNNNN\n" unless @sequences == 3;
 
 my ($primer1, $primer2, $template) = @sequences;
 
@@ -75,7 +75,7 @@ my @pairings = (
     [$primer2->{seq},          \@primer2_trunc, $primer2->{name}, "$primer2->{name} Self", "Rev Self"],
 );
 
-print $out "### Tm are estimated based on the SantaLucia1999 DNA model at 1M Na and 100nM DNA strands ###\n\n";
+print $out "### Tm are estimated based on the SantaLucia1998 DNA model at 1M Na and 100nM DNA strands ###\n\n";
 
 # Perform analysis
 foreach my $pair (@pairings) {
@@ -456,27 +456,51 @@ sub is_complementary {
            ($b1 eq 'C' && $b2 eq 'G') || ($b1 eq 'G' && $b2 eq 'C');
 }
 
-# Function to calculate Tm with SantaLucia1996 parameters
+# Function to calculate Tm with SantaLucia1996 OR 1998 parameters
 sub calculate_tm {  
-    # Nearest-neighbor parameters (enthalpy in kcal/mol, entropy in cal/(mol·K))
+
+###############
+#     # Nearest-neighbor parameters (enthalpy in kcal/mol, entropy in cal/(mol·K)) from SantaLucia1996
+#     my %nn_params = (
+#         "AA" => [-8.4, -23.6], "TT" => [-8.4, -23.6],
+#         "AT" => [-6.5, -18.8], "TA" => [-6.3, -18.5],
+#         "CA" => [-7.4, -19.3], "TG" => [-7.4, -19.3],
+#         "GT" => [-8.6, -23.0], "AC" => [-8.6, -23.0],
+#         "CT" => [-6.1, -16.1], "AG" => [-6.1, -16.1],
+#         "GA" => [-7.7, -20.3], "TC" => [-7.7, -20.3],
+#         "CG" => [-10.1, -25.5], "GC" => [-11.1, -28.4],
+#         "GG" => [-6.7, -15.6], "CC" => [-6.7, -15.6],
+#     );
+#     
+#     # Penalties and corrections for initiation and terminal effects
+#     my %penalties = (
+#         "initiation_AT" => [0, -9.0],  # A•T initiation enthalpy and entropy
+#         "initiation_GC" => [0, -5.9],  # G•C initiation enthalpy and entropy
+#         "symmetry"      => [0, -1.4],  # Symmetry correction
+#         "terminal_TA"   => [0.4, 0.0], # Penalty for terminal T•A (This term is later removed in 1998)
+#     );
+############
+
+    ## Averaged NN params from SantaLucia1998PNAS
     my %nn_params = (
-        "AA" => [-8.4, -23.6], "TT" => [-8.4, -23.6],
-        "AT" => [-6.5, -18.8], "TA" => [-6.3, -18.5],
-        "CA" => [-7.4, -19.3], "TG" => [-7.4, -19.3],
-        "GT" => [-8.6, -23.0], "AC" => [-8.6, -23.0],
-        "CT" => [-6.1, -16.1], "AG" => [-6.1, -16.1],
-        "GA" => [-7.7, -20.3], "TC" => [-7.7, -20.3],
-        "CG" => [-10.1, -25.5], "GC" => [-11.1, -28.4],
-        "GG" => [-6.7, -15.6], "CC" => [-6.7, -15.6],
+        "AA" => [-7.9, -22.2], "TT" => [-7.9, -22.2],
+        "AT" => [-7.2, -20.4], "TA" => [-7.2, -21.3],
+        "CA" => [-8.5, -22.7], "TG" => [-8.5, -22.7],
+        "GT" => [-8.4, -22.4], "AC" => [-8.4, -22.4],
+        "CT" => [-7.8, -21.0], "AG" => [-7.8, -21.0],
+        "GA" => [-8.2, -22.2], "TC" => [-8.2, -22.2],
+        "CG" => [-10.6, -27.2], "GC" => [-9.8, -24.4],
+        "GG" => [-8.0, -19.9], "CC" => [-8.0, -19.9],
     );
     
     # Penalties and corrections for initiation and terminal effects
     my %penalties = (
-        "initiation_AT" => [0, -9.0],  # A•T initiation enthalpy and entropy
-        "initiation_GC" => [0, -5.9],  # G•C initiation enthalpy and entropy
-        "symmetry"      => [0, -1.4],  # Symmetry correction
-        "terminal_TA"   => [0.4, 0.0], # Penalty for terminal T•A
+        "initiation_AT" => [2.3, 4.1],  # A•T initiation enthalpy and entropy
+        "initiation_GC" => [0.1, -2.8], # G•C initiation enthalpy and entropy
+        "symmetry"      => [0, -1.4],   # Symmetry correction
+        "terminal_TA"   => [0.0, 0.0],  # Penalty for terminal T•A determined to be wrong by Sugimoto, updated in 1998PNAS
     );
+
 
     my ($template_seq, $primer_seq, $alignment) = @_;
 
@@ -505,11 +529,11 @@ sub calculate_tm {
                 $total_ds += $nn_params{$template_pair}->[1];
             }
         } elsif ($align_char eq '-') {
-            # Bulge penalty
-            $total_dh += 0.0;
-            $total_ds += -6;
+            # Bulge penalty  (not provided in this dataset)
+            $total_dh += 0.0; # no base pair, so no enthalpy bonus
+            $total_ds += -6;  # backbone constraint leads to small entropic cost, about 1/4 of a GC
         } else {
-            # Mismatch penalty (not provided in this dataset, approximate with bulge penalty)
+            # Mismatch penalty (not provided in this dataset, treat the same as a bulge)
             $total_dh += 0.0;
             $total_ds += -6;
         }
@@ -528,9 +552,9 @@ sub calculate_tm {
     }
 
     # Calculate Tm
-    my $R = 1.987; # Gas constant in cal/(mol·K)
+    my $R = 1.987;            # Gas constant in cal/(mol·K)
     my $strand_conc = 100e-9; # Primer concentration 100 nM
-    my $salt_conc = 1;      # Salt concentration 1M (KCl)
+    my $salt_conc = 1;        # Salt concentration 1M (KCl)
 
     # Salt correction for Tm
     my $salt_correction = 16.6 * log($salt_conc) / log(10);
