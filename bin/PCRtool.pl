@@ -40,9 +40,9 @@ my @primer1_trunc = generate_truncations($primer1->{seq}, $min_complementary);
 my @primer2_trunc = generate_truncations($primer2->{seq}, $min_complementary);
 
 # # Processing: Parsed sequences and bulged variants
-print "Processing: Parsed sequences:\n", Dumper(\@sequences);
-print "Processing: Primer1 Variants:\n", Dumper(\@primer1_variants);
-print "Processing: Primer2 Variants:\n", Dumper(\@primer2_variants);
+# print "Processing: Parsed sequences:\n", Dumper(\@sequences);
+# print "Processing: Primer1 Variants:\n", Dumper(\@primer1_variants);
+# print "Processing: Primer2 Variants:\n", Dumper(\@primer2_variants);
 
 # Create a smart output file name based on the input file name
 my ($input_base) = $fasta_file =~ /([^\/\\]+)\.[^.]+$/;  # Extract the base name (excluding path and extension)
