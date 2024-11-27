@@ -4,16 +4,16 @@ use warnings;
 use Data::Dumper;
 
 # Input FASTA file
-my $fasta_file = shift @ARGV or die "Usage: $0 <input.fasta>\n";
+my $fasta_file = shift @ARGV or die "Usage: $0 <input.fasta>\n\nInput FASTA file must contain exactly 3 sequences: Forward, Reverse and Template\n\n>Forward_Primer\nNNNNNNNNNN\n>Reverse_Primer\nNNNNNNNNNN\n>Template_Strand\nNNNNNNNNNNNNNNNNNN\n";
 
 # Parameters
-my $min_tm = 15;           # Tm threshold
+my $min_tm = 20;           # Tm threshold
 my $min_complementary = 6; # Minimum number of complementary bases to report
 my $top_results = 20;      # Number of top results to display for each group
 
 # Parse FASTA
 my @sequences = parse_fasta($fasta_file);
-die "FASTA file must contain exactly 3 sequences\n" unless @sequences == 3;
+die "Input FASTA file must contain exactly 3 sequences: Forward, Reverse and Template\n\n>Forward_Primer\nNNNNNNNNNN\n>Reverse_Primer\nNNNNNNNNNN\n>Template_Strand\nNNNNNNNNNNNNNNNNNN\n";
 
 my ($primer1, $primer2, $template) = @sequences;
 
@@ -39,10 +39,10 @@ my @primer2_variants = generate_variants($primer2->{seq}, $min_complementary);
 my @primer1_trunc = generate_truncations($primer1->{seq}, $min_complementary);
 my @primer2_trunc = generate_truncations($primer2->{seq}, $min_complementary);
 
-# # Debug: Parsed sequences and bulged variants
-print "Debug: Parsed sequences:\n", Dumper(\@sequences);
-print "Debug: Primer1 Variants:\n", Dumper(\@primer1_variants);
-print "Debug: Primer2 Variants:\n", Dumper(\@primer2_variants);
+# # Processing: Parsed sequences and bulged variants
+print "Processing: Parsed sequences:\n", Dumper(\@sequences);
+print "Processing: Primer1 Variants:\n", Dumper(\@primer1_variants);
+print "Processing: Primer2 Variants:\n", Dumper(\@primer2_variants);
 
 # Create a smart output file name based on the input file name
 my ($input_base) = $fasta_file =~ /([^\/\\]+)\.[^.]+$/;  # Extract the base name (excluding path and extension)
@@ -75,10 +75,12 @@ my @pairings = (
     [$primer2->{seq},          \@primer2_trunc, $primer2->{name}, "$primer2->{name} Self", "Rev Self"],
 );
 
+print $out "### Tm are estimated based on the SantaLucia1999 DNA model at 1M Na and 100nM DNA strands ###\n\n";
+
 # Perform analysis
 foreach my $pair (@pairings) {
     my ($template_seq, $primer_variants, $template_name, $primer_name, $label) = @$pair;
-    print "Debug: Analyzing $label\n";
+    print "Processing: Analyzing $label\n";
 
     my @results;
     foreach my $primer_seq (@$primer_variants) {
@@ -152,19 +154,19 @@ foreach my $pair (@pairings) {
             annotate_binding_sites($result, \$template_annotation, 'F');  # Forward primer on top strand
         }
     }
-    elsif ($label =~ /Reverse Complement vs Reverse/) {
+    elsif ($label =~ /Template vs Reverse/) {
         foreach my $result (@results) {
-            annotate_binding_sites($result, \$revcom_annotation, 'R');  # Reverse primer on bottom strand
+            annotate_binding_sites($result, \$template_annotation, 'R');  # Reverse primer on top strand
         }
-    }
+    }    
     elsif ($label =~ /Reverse Complement vs Forward/) {
         foreach my $result (@results) {
             annotate_binding_sites($result, \$revcom_annotation, 'F');  # Forward primer on bottom strand
         }
     }
-    elsif ($label =~ /Template vs Reverse/) {
+    elsif ($label =~ /Reverse Complement vs Reverse/) {
         foreach my $result (@results) {
-            annotate_binding_sites($result, \$template_annotation, 'R');  # Reverse primer on top strand
+            annotate_binding_sites($result, \$revcom_annotation, 'R');  # Reverse primer on bottom strand
         }
     }
 
@@ -282,8 +284,6 @@ foreach my $result (@palindrome_results) {
     print $out "Tm: $formatted_tm °C   Offset: $offset\n";
     print $out "$pal_with_direction\n\n";
 }
-
-
 
 #####
 
@@ -506,12 +506,12 @@ sub calculate_tm {
             }
         } elsif ($align_char eq '-') {
             # Bulge penalty
-            $total_dh += 0.2;
-            $total_ds += -5.7;
+            $total_dh += 0.0;
+            $total_ds += -6;
         } else {
             # Mismatch penalty (not provided in this dataset, approximate with bulge penalty)
-            $total_dh += 0.2;
-            $total_ds += -5.7;
+            $total_dh += 0.0;
+            $total_ds += -6;
         }
     }
 
@@ -529,13 +529,11 @@ sub calculate_tm {
 
     # Calculate Tm
     my $R = 1.987; # Gas constant in cal/(mol·K)
-    my $strand_conc = 1000e-9; # Primer concentration 1 uM
-    my $salt_conc = 0.05;      # Salt concentration 50 mM (KCl)
-    my $mg_conc = 2e-3;       # Mg concentration 2 mM
+    my $strand_conc = 100e-9; # Primer concentration 100 nM
+    my $salt_conc = 1;      # Salt concentration 1M (KCl)
 
     # Salt correction for Tm
-    my $effective_salt = $salt_conc + 3.3 * sqrt($mg_conc);  # Adjust for Mg2+
-    my $salt_correction = 16.6 * log($effective_salt) / log(10);
+    my $salt_correction = 16.6 * log($salt_conc) / log(10);
 
     # Calculate Tm (convert ΔH from kcal/mol to cal/mol)
     my $tm = (($total_dh * 1000) / ($total_ds + ($R * log($strand_conc)))) - 273.15 + $salt_correction;
