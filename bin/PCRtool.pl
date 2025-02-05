@@ -7,7 +7,7 @@ use Data::Dumper;
 my $fasta_file = shift @ARGV or die "Usage: $0 <input.fasta>\n\nInput FASTA file must contain exactly 3 sequences: Forward, Reverse and Template\n\n>Forward_Primer\nNNNNNNNNNN\n>Reverse_Primer\nNNNNNNNNNN\n>Template_Strand\nNNNNNNNNNNNNNNNNNN\n";
 
 # Parameters
-my $min_tm = 20;           # Tm threshold
+my $min_tm = 20;           # Tm threshold, chilly roomtemp
 my $min_complementary = 6; # Minimum number of complementary bases to report
 my $top_results = 20;      # Number of top results to display for each group
 

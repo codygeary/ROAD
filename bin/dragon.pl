@@ -64,8 +64,8 @@ my $KL_min_delta_G = -6;       #minimum threshold for non-cognate KL interaction
 #my $MinKL = -7.2;    ##Default -7.2
 #my $MaxKL = -10.8;    ##Default -10.8
 
-my $MinKL = -10;    ##Default -7.2
-my $MaxKL = -12;    ##Default -10.8
+my $MinKL = -7.2;    ##Default -7.2
+my $MaxKL = -11;    ##Default -10.8
 
 my $GC_check = 100;
 

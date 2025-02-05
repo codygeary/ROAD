@@ -205,8 +205,8 @@ my @patterns = (
     { find => "(([[[[[[.((",  replace => "V----------", marks => ["-", "-", "-", "W"] },
     { find => "((]]]]]].((",  replace => "V----------", marks => ["-", "-", "-", "W"] },
     { find => "((.......((",  replace => "V----------", marks => ["-", "-", "-", "W"] },
-    { find => "(.....(",      replace => "F------",    marks => ["-", "G"] },
-    { find => ").....)",      replace => "F------",    marks => ["-", "G"] },
+    { find => "((.....((",      replace => "G--------",    marks => ["-","-","-", "Z"] },
+    { find => ")).....))",      replace => "G--------",    marks => ["-","-","-", "Z"] },
     { find => "((((.........((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
     { find => "((((.[[[[....((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
     { find => "((((.]]]]....((((",  replace => "I----------------", marks => ["-", "-", "-", "-", "-", "-", "-", "J"] },
@@ -319,8 +319,8 @@ my %assembly_actions = (
     'Q' => sub { printer("REMARK Add MANGO $nt_pos-"); add_mango(); printer("$nt_pos\n"); },
     'V' => sub { printer("REMARK Add BKL-A $nt_pos-"); add_bkla(); printer("$nt_pos\n"); },
     'W' => sub { printer("REMARK Add BKL-B $nt_pos-"); add_bklb(); printer("$nt_pos\n"); },
-    'F' => sub { printer("REMARK Add 90deg AACUA bend\n"); add_ninetya(); printer("$nt_pos\n"); },
-    'G' => sub { printer("REMARK Add 90deg AACUA hinge\n"); add_ninetyb(); printer("$nt_pos\n"); },
+    'G' => sub { printer("REMARK Add 90deg AACUA bend\n"); add_ninetya(); printer("$nt_pos\n"); },
+    'Z' => sub { printer("REMARK Add 90deg AACUA hinge\n"); add_ninetyb(); printer("$nt_pos\n"); },
     'I' => sub { printer("REMARK Add AlphaPK loop\n"); add_APKa(); printer("$nt_pos\n"); },
     'J' => sub { printer("REMARK Add AlphaPK stem\n"); add_APKb(); printer("$nt_pos\n"); },
 );
@@ -496,7 +496,11 @@ sub transform {   #point (x,y,z,1) multiplied by the transform_matrix (16 elemen
 
 sub add_nts {
     my $no = 1;
-    if ($map[$nt_pos-1]<($nt_pos-1) && $motif[$map[$nt_pos-1]]==0) {  #if map<nt_pos then we are a closing nt, and we calculate from the partner's ref-frame (later we may average the two options)
+    if ($nt_pos > 0 && $nt_pos <= @map && defined $map[$nt_pos-1] 
+        && $map[$nt_pos-1] >= 0 && $map[$nt_pos-1] < @motif 
+        && defined $motif[$map[$nt_pos-1]] 
+        && $map[$nt_pos-1] < ($nt_pos-1) && $motif[$map[$nt_pos-1]] == 0) {    
+        #if map<nt_pos then we are a closing nt, and we calculate from the partner's ref-frame (later we may average the two options)
 
         $ref_frame_position = $map[$nt_pos-1]+2;
         @ref_frame_angle = &update_ref_frame($ref_frame_position);
@@ -541,7 +545,9 @@ sub add_nts {
         @ref_frame_angle = &update_ref_frame($ref_frame_position);
 
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it into the active site
-            if ( ($ATOM->{n} eq $seq[$nt_pos-1]) && ($ATOM->{h} eq 'A')) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+                if ($nt_pos > 0 && $nt_pos <= @seq && defined $seq[$nt_pos-1] 
+                    && $ATOM->{n} eq $seq[$nt_pos-1] && $ATOM->{h} eq 'A') {
+                #$c is the current resi, atom(i) is the resi number element in the PDB file.
 
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
                 $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
@@ -2450,7 +2456,7 @@ sub add_ninetya {
 
     for ($i=1;$i<10;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
-            if ( ($ATOM->{h} eq 'B') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+            if ( ($ATOM->{h} eq 'G') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
                 $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
 
@@ -2491,7 +2497,7 @@ sub add_ninetyb {
 
     for ($i=1;$i<5;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
-            if ( ($ATOM->{h} eq 'B') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
+            if ( ($ATOM->{h} eq 'Z') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
                 $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
                 $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
 

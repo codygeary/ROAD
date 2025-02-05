@@ -114,5 +114,17 @@ Mango Aptamers
       5─GCUCU──GA───CC─3 3─CC───AG──UCUCG─5               
         ┊┊┊┊        ┊┊     ┊┊        ┊┊┊┊               
       3─CGAGU─AGUGC─GG─5 5─GG─CGUGA─UGAGC─3                  
-                     
-                         
+ 
+                    
+   90 Bend motif from PDB 3P59  (Dibrov et al. PNAS 2011)
+                               
+                
+    3─NC─────GN─5    5─NGAACUACN─3  
+      ┊┊     ┊┊        ┊┊     ┊┊   
+    5─NGAACUACN─3    3─NC─────GN─5 
+                                      
+                                    
+    5─NG─────CN─3    3─NCAUCAAGN─5       
+      ┊┊     ┊┊        ┊┊     ┊┊         
+    3─NCAUCAAGN─5    5─NG─────CN─3      
+                        
