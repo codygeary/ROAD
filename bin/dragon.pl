@@ -43,16 +43,19 @@ my $gc_mut_ratio = 15;        #How much GCs are preferred over AUs.
 my $double_mutant = 99;       #Percent of mutants that target base-pairs rather than single positions.
 my $misfold_tolerance = 1.06; #factor of increase in distance that will be allowed during the mutation stage
 my $output_threshold = 0;     #1=verbose, 0=hide output for neutral mutations
-my $max_GC=65;                #set desired GC content of initial design
-my $max_GC_opt=65;            #set the final GC content after optimization, must be greater than $max_GC
+my $max_GC=60;                #set desired GC content of initial design
+my $max_GC_opt=58;            #set the final GC content after optimization, must be greater than $max_GC
 my $KL_GC=30;                 #set GC for Kissing Loops
 my $target_GU = 1;            #Minimum GU, turned off since we are enforcing GU with the pattern
 my $longrange = 250;          #define the min distance for pairs to require AUC-limited alphabet in initilization.
 
-my $duplicate_window = 10;    ### Length of Duplicates regions that Pattern Search looks for   (marked "D", default=10)
+my $duplicate_window = 9;    ### Length of Duplicates regions that Pattern Search looks for   (marked "D", default=10)
 my $complement_window = 10;        #window-size to search for complement sequences - for GU placer
 my $complement_zones=0;
 my $duplication_zones=0;
+my $palindrome_window = 8;        #min palindrome size to search and mark
+
+my $palindromes = 0;
 
 my $max_failed_tries = 100;    #sets the number of times it will try to mutate the surrounding nts when the only remaining misfolds are in sequence-locked regions
 
@@ -64,7 +67,7 @@ my $KL_min_delta_G = -6;       #minimum threshold for non-cognate KL interaction
 #my $MinKL = -7.2;    ##Default -7.2
 #my $MaxKL = -10.8;    ##Default -10.8
 
-my $MinKL = -7.2;    ##Default -7.2
+my $MinKL = -9.2;    ##Default -7.2
 my $MaxKL = -11;    ##Default -10.8
 
 my $GC_check = 100;
@@ -159,7 +162,7 @@ sub read_file
     close FILE;
 
     @lines = split "\n", $content;
-
+    
     return wantarray ? @lines : \@lines;
 }
 
@@ -1168,6 +1171,7 @@ my $last_pattern_repeats=$pattern_repeats;
 my $last_poly_repeats=$poly_repeats;
 my $last_restriction_sites =$restriction_sites;
 my $last_complement_zones = $complement_zones;
+my $last_palindromes = $palindromes;
 my $last_duplication_zones = $duplication_zones;
 
 ###Pre-check if the cycle is satisfied
@@ -1187,6 +1191,8 @@ $last_poly_repeats=$poly_repeats;
 $last_restriction_sites = $restriction_sites;
 $last_complement_zones = $complement_zones;
 $last_duplication_zones = $duplication_zones;
+$last_palindromes = $palindromes;
+
 
 ###END check
 
@@ -1277,6 +1283,11 @@ do{
                     }
                 } elsif ($repeat_map[$i]eq"P") {  #the odds of random mutation to be roughly 5 per total number of sites
                     if (rand($complement_zones)<5){
+                        $mutate_now=1;
+                        $mutation_sites[$i]+=1;
+                    }
+                } elsif ($repeat_map[$i]eq"L") {  #the odds of random mutation to be roughly 5 per total number of sites
+                    if (rand($palindromes)<5){
                         $mutate_now=1;
                         $mutation_sites[$i]+=1;
                     }
@@ -1431,11 +1442,11 @@ do{
             ###Count up the patterns and make a map
 
             &countrepeats;
-            &printer("(SW$pattern_repeats/N$poly_repeats/R$restriction_sites/W$complement_zones)");
-            if(($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones )){&printer(" - bad roll, trying again...\n"); $rad_level += -1;}
+            &printer("(SW$pattern_repeats/N$poly_repeats/R$restriction_sites/W$complement_zones/L$palindromes)");
+            if(($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones + $palindromes) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones + $last_palindromes )){&printer(" - bad roll, trying again...\n"); $rad_level += -1;}
 
 
-        }while( (($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones)) && ($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones + $duplication_zones));
+        }while( (($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones + $palindromes) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones + $last_palindromes)) && ($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones + $duplication_zones + $palindromes));
 
     }#end test_first comparison
     $test_first=0;
@@ -1460,6 +1471,7 @@ do{
         $last_restriction_sites = $restriction_sites;
         $last_complement_zones = $complement_zones;
         $last_duplication_zones = $duplication_zones;
+        $last_palindromes = $palindromes;
 
         $rad_level += 2;    #ramp up confidence fast! things fail a lot at this stage.
         for ( $i=0; $i<$strand_length; $i++){
@@ -1482,7 +1494,7 @@ do{
 
 
         &countGC();
-        &printer(" 8S|8W Repeats: $pattern_repeats    5G|5C|5A|5U Repeats: $poly_repeats   Restriction: $restriction_sites  Complement: $complement_zones  Duplication: $duplication_zones\n");
+        &printer(" 8S|8W Repeats: $pattern_repeats    5G|5C|5A|5U Repeats: $poly_repeats   Restriction: $restriction_sites  Complement: $complement_zones  Duplication: $duplication_zones  Palindromes: $palindromes\n");
         &printer("Mutation Map:\n$mut_map_text\n");
         &printer("$best_sol_seq\n");
         &printer("Patterns Remaining:\n$repeat_map_text\n\n");
@@ -1498,7 +1510,7 @@ do{
         }
     }
 
-    if ($GC_cont<$max_GC && $pattern_repeats==0 && $distance==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0) {
+    if ($GC_cont<$max_GC && $pattern_repeats==0 && $distance==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0 && $palindromes==0) {
         $happy = 1;
     } elsif($GC_cont>$max_GC){&printer( "GC content still too high \n");
     }
@@ -1598,7 +1610,7 @@ $happy=0;
     &pattern_prevent;
     &countrepeats;  #search for repeated sequences
 
-    if ($distance == 0 && ($KL_repeats<=$old_KL_repeats) && $GC_cont<$max_GC && $pattern_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0) {$keep_sequence=1;}    ##ADD PATTERN PREVENT CHECKING HERE.
+    if ($distance == 0 && ($KL_repeats<=$old_KL_repeats) && $GC_cont<$max_GC && $pattern_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0 && $palindromes==0) {$keep_sequence=1;}    ##ADD PATTERN PREVENT CHECKING HERE.
 
     if ($keep_sequence==1){        #Check if the new mutant is better than the parent
         for ( $i=0; $i<$strand_length; $i++){
@@ -1714,10 +1726,11 @@ do{
         $pattern_repeats =0;
         $complement_zones=0;
         $duplication_zones=0;
+        $palindromes = 0;
     }
 
     my $pattern_prevent_failure =0;
-    if($KL_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $pattern_repeats ==0 && $complement_zones==0 && $duplication_zones==0){    #only fold if the new sequences passes KL Repeats test
+    if($KL_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $pattern_repeats ==0 && $complement_zones==0 && $duplication_zones==0 && $palindromes==0){    #only fold if the new sequences passes KL Repeats test
         &printer("\nFolding...\n");
         &fold($new_trial_seq);
         $new_fold = $fold;             #The fold of puzzle solution
@@ -1980,7 +1993,7 @@ do{
             if($GC_cont>$max_GC_opt){ $GC_check=100;}else{ $GC_check=0;}
 
             &countrepeats;
-            &printer("(Repeats:$pattern_repeats/Poly:$poly_repeats/Restrict:$restriction_sites/Needs Wobble:$complement_zones/GC Content:$GC_cont)\n");
+            &printer("(Repeats:$pattern_repeats/Poly:$poly_repeats/Restrict:$restriction_sites/Needs Wobble:$complement_zones/GC Content:$GC_cont Palindromes:$palindromes)\n");
 
          ###check masked sequence
                 my $unmasked_pattern = 0;
@@ -1997,15 +2010,15 @@ do{
                     $restriction_sites=0;
                     $complement_zones=0;
                     $duplication_zones=0;  #manually set these to zero since they are not optimizable based on the constraints.
-
+                    $palindromes = 0;
                     $failed_pattern_test = 1;  # mark the fail-pattern-test variable so that it will output an error message in the final files.
 
                 }
 
-            if(($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones )){ $rad_level += -1;}
+            if(($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones/$complement_window + $duplication_zones + $palindromes) > ($last_pattern_repeats + $last_poly_repeats + $last_restriction_sites + $last_complement_zones/$complement_window + $last_duplication_zones + $last_palindromes )){ $rad_level += -1;}
             if($GC_check>0){$rad_level += 6;}
         }while(
-         ($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones + $duplication_zones + $GC_check) );
+         ($pattern_repeats + $poly_repeats + $restriction_sites + $complement_zones + $duplication_zones + $palindromes + $GC_check) );
 
     }#end test_first comparison
     $test_first=0;
@@ -2021,7 +2034,7 @@ do{
 
     my $print_output=0;
 
-    if ($distance == 0 && $GC_check==0 && (($pattern_repeats <= $last_pattern_repeats) || ($poly_repeats <= $last_poly_repeats) || ($restriction_sites <= $last_restriction_sites)  || ($complement_zones > $last_complement_zones ) || ($duplication_zones > $last_duplication_zones ) )) {$keep_sequence=1;}
+    if ($distance == 0 && $GC_check==0 && (($pattern_repeats <= $last_pattern_repeats) || ($poly_repeats <= $last_poly_repeats) || ($restriction_sites <= $last_restriction_sites)  || ($complement_zones > $last_complement_zones ) || ($duplication_zones > $last_duplication_zones ) || ($palindromes>$last_palindromes) )) {$keep_sequence=1;}
 
     $keep_ED=0; #reset this variable
     if ($keep_sequence==1){
@@ -2046,6 +2059,7 @@ do{
         $last_restriction_sites = $restriction_sites;
         $last_complement_zones = $complement_zones;
         $last_duplication_zones = $duplication_zones;
+        $last_palindromes = $palindromes;
 
         $rad_level += 3;    #ramp up confidence fast! things fail a lot at this stage.
         for ( $i=0; $i<$strand_length; $i++){
@@ -2067,7 +2081,7 @@ do{
         $parent_fold_string = $fold;
 
         &countGC();
-        #&printer(" 8S|8W Repeats: $pattern_repeats   5G|5C|5A|5U Repeats: $poly_repeats   Restriction: $restriction_sites  Complement: $complement_zones  Duplication: $duplication_zones\n");
+        #&printer(" 8S|8W Repeats: $pattern_repeats   5G|5C|5A|5U Repeats: $poly_repeats   Restriction: $restriction_sites  Complement: $complement_zones  Duplication: $duplication_zones Palindromes:$palindromes\n");
         #&printer("Mutation Map:\n$mut_map_text\n");
         #&printer("$best_sol_seq\n");
         #&printer("Patterns Remaining:\n$repeat_map_text\n\n");
@@ -2157,14 +2171,45 @@ sub countrepeats {
                 }
             }
         }
+    }
 
+    for ( $i=0; $i<($strand_length-$palindrome_window); $i++){      #search for antisense matches
+
+        $pattern_sense = substr($trial_sol_seq, $i, $palindrome_window);  #grab the substring pattern here
+        $pattern_antisense = "";  #reset the pattern here
+        for (my $j=0; $j<$palindrome_window+1; $j++){ #generate the complement sequence
+            if (substr($pattern_sense,$palindrome_window-$j,1) eq "A" ){$pattern_antisense=$pattern_antisense."U";}
+            if (substr($pattern_sense,$palindrome_window-$j,1) eq "U" ){$pattern_antisense=$pattern_antisense."A";}
+            if (substr($pattern_sense,$palindrome_window-$j,1) eq "C" ){$pattern_antisense=$pattern_antisense."G";}
+            if (substr($pattern_sense,$palindrome_window-$j,1) eq "G" ){$pattern_antisense=$pattern_antisense."C";}
+        }
+        ##  print "$pattern_sense - $pattern_antisense\n";   #for bugchecking
+
+        my $test_result_1 = index($trial_sol_seq, $pattern_antisense, 0);
+        my $test_result_2 = index($trial_sol_seq, $pattern_sense, 0);        
+
+        for (my $j=$i; $j<$strand_length-$complement_window; $j++){
+            $test_result_1 = index($trial_sol_seq, $pattern_antisense, $j);   #search for antisense matches
+            $test_result_2 = index($trial_sol_seq, $pattern_sense, $j);       #search for sense matches
+
+            if (($test_result_1 != -1) && ($test_result_2 != -1)){
+                for (my $k=0; $k<$palindrome_window; $k++){
+                    if ($test_result_1 == $test_result_2){
+                        $repeat_map[$i+$k]="L";
+                        $repeat_map[$test_result_1+$k]="L";
+                    }
+                }
+            }
+        }
     }
 
     $complement_zones=0;
+    $palindromes = 0;
     for ($i=0; $i<$strand_length; $i++){
         if ($repeat_map[$i]eq"P" || $repeat_map[$i]eq"p"){$complement_zones+=1;}
-    }
+        if ($repeat_map[$i]eq"L" ){$palindromes+=1;}
 
+    }
 
     for ( $i=0; $i<($strand_length-$duplicate_window); $i++){       #search for sense duplications
 
@@ -2669,6 +2714,8 @@ sub analyzeKL {
 }
 
 sub export {
+        $best_sol_seq = join "",@best_sol;
+        qx(echo $best_sol_seq > seq.txt);
 
         my $ensemblediversity = qx(rnafold --noPS -p < seq.txt);
 
@@ -2808,3 +2855,4 @@ sub printer {
     print $output_spool "$_[0]";
     #print ("$_[0]");
 }
+
