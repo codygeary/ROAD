@@ -2540,32 +2540,65 @@ sub add_APKa {
     for ($i=1;$i<18;$i++) {
         foreach $ATOM ( @ATOM ) {           #we scan the datafile for the nt type and paste it in
             if ( ($ATOM->{h} eq 'I') &&  ($ATOM->{i} == $i)) {   #$c is the current resi, atom(i) is the resi number element in the PDB file.
-                $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
-                $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
 
-                $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
-
-                @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
-                @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
-                @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
-
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
-                @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
-                @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
-
-                @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
-
-                $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
-
-                push @PDB, {
-                    "a" => $ATOM->{a},  #atom type
-                    "n" => $ATOM->{n},  #residue type
-                    "i" => $nt_pos-1+$i,  #residue number
-                    "h" => "A", #chain name
-                    "x" => sprintf("%8s",$roundedx),
-                    "y" => sprintf("%8s",$roundedy),
-                    "z" => sprintf("%8s",$roundedz),
+                if ($i>=5 && $i<=13){
+                    if ( ($ATOM->{n} eq $seq[$nt_pos-2+$i] ) ){
+                        $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
+                        $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
+        
+                        $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
+        
+                        @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
+                        @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
+                        @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
+                        @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
+        
+                        @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+                        @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+                        @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+        
+                        @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+        
+                        $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+        
+                        push @PDB, {
+                            "a" => $ATOM->{a},  #atom type
+                            "n" => $seq[$nt_pos-2+$i],  #residue type
+                            "i" => $nt_pos-1+$i,  #residue number - (type and number are off by 1 since $seq starts at 0 and res starts at 1)
+                            "h" => "A", #chain name
+                            "x" => sprintf("%8s",$roundedx),
+                            "y" => sprintf("%8s",$roundedy),
+                            "z" => sprintf("%8s",$roundedz),
+                        }
+                    }                   
+                } else {
+                    $nt_step[0]=5.05026531; $nt_step[1]=0.63351020; $nt_step[2]=-2.27143878;    $nt_step[3]=1;  #these were measured by nt_diff.pl, averaged from 50bp of A-form generated in Assemble/Chimera
+                    $angles[0]=-1.05152505; $angles[1]=0.46918242;  $angles[2]=1.37954160;
+    
+                    $point[0]=$ATOM->{x};   $point[1]=$ATOM->{y};   $point[2]=$ATOM->{z};   $point[3]=1;
+    
+                    @moved = &rotate_z ("@point",-$angles[2]);  #first rotation  -we move the nt to the untranslocated pos
+                    @moved = &rotate_y ("@moved",-$angles[1]); #second rotation
+                    @moved = &rotate_z ("@moved",-$angles[0]); #final rotation
+                    @moved = &translate_matrix ("@moved","@nt_step");  #POINT followed by translation vector
+    
+                    @moved = &rotate_z ("@moved",-$ref_frame_angle[2]);  #first rotation    -now we rotate aout
+                    @moved = &rotate_y ("@moved",-$ref_frame_angle[1]); #second rotation
+                    @moved = &rotate_z ("@moved",-$ref_frame_angle[0]); #final rotation
+    
+                    @moved = &translate_matrix ("@moved","@ref_trans");  #      Now moving to add to the 3prime end
+    
+                    $roundedx = sprintf("%4.3f", $moved[0]);    $roundedy = sprintf("%4.3f", $moved[1]);    $roundedz = sprintf("%4.3f", $moved[2]);
+    
+                    push @PDB, {
+                        "a" => $ATOM->{a},  #atom type
+                        "n" => $ATOM->{n},  #residue type
+                        "i" => $nt_pos-1+$i,  #residue number
+                        "h" => "A", #chain name
+                        "x" => sprintf("%8s",$roundedx),
+                        "y" => sprintf("%8s",$roundedy),
+                        "z" => sprintf("%8s",$roundedz),
+                    }                                
                 }
             }
         }
