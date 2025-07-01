@@ -696,11 +696,11 @@ my $parent_fold_string = $fold;
 my $parent_dist = $distance;
 
 &printer("Initial Sequence: Distance = $parent_dist");
+my @trial_sol = @best_sol;
 &countGC;
 &printer("$best_sol_seq\n");
 &printer($fold);
 
-my @trial_sol = @best_sol;
 my $new_trial_seq = $best_sol_seq;
 
 my $bp_direction=0; my $bp_type=0; my $GC_cont=100;
@@ -1196,7 +1196,7 @@ $last_palindromes = $palindromes;
 
 ###END check
 
-my $test_first =1;
+my $test_first = 1;
 
 $drift_rate=$my_drift_rate; #reset drift rate here
 
@@ -1503,7 +1503,7 @@ do{
 
         } else {    ##else don't keep sequence
             $rad_level += -1;  #decrease confidence a little bit every time it fails
-            if ($rad_level <3){$rad_level=3;}  ##set the minimum to 3, so that things don't slow down too much
+            if ($rad_level <3){$rad_level=3;}  ##set the minimum to 3, so that things don't slow down too much #Alyona
             &printer(" Bad Fold: -D$trial_dist");
             for ( $i=0; $i<$strand_length; $i++){
                 $trial_sol[$i]=$best_sol[$i];  #reset the trial solution
@@ -1559,14 +1559,13 @@ $happy=0;
     my $old_KL_repeats=$KL_repeats;
 
     for ( $i=0; $i<$strand_length; $i++){    ##look for the repeated KLs and mutate them
-
         if (($target[$i]eq"[" || $target[$i]eq"]") && $constraint[$i]eq"N" && $pattern_zones[$i]ne"-"){
             $rand_num_one = rand(100);
             $bp_direction= int(rand(2));
             $bp_type=(rand(100));
-            if($rand_num_one<100*(1/(4*$KL_repeats))){
-                &printer("!");
+            if($rand_num_one<(100*(1/(4*$KL_repeats)))){
                 if ($bp_type<$KL_GC) {
+                &printer("!");
                     if ($bp_direction==0) {
                         $trial_sol[$i] = "G";
                         $trial_sol[$map[$i]] = "C";
@@ -1610,7 +1609,8 @@ $happy=0;
     &pattern_prevent;
     &countrepeats;  #search for repeated sequences
 
-    if ($distance == 0 && ($KL_repeats<=$old_KL_repeats) && $GC_cont<$max_GC && $pattern_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0 && $palindromes==0) {$keep_sequence=1;}    ##ADD PATTERN PREVENT CHECKING HERE.
+    #if ($distance == 0 && ($KL_repeats<=$old_KL_repeats) && $GC_cont<$max_GC && $pattern_repeats==0 && $poly_repeats==0  && $restriction_sites==0 && $complement_zones==0 && $duplication_zones==0 && $palindromes==0) {$keep_sequence=1;}    ##ADD PATTERN PREVENT CHECKING HERE.
+   
 
     if ($keep_sequence==1){        #Check if the new mutant is better than the parent
         for ( $i=0; $i<$strand_length; $i++){
@@ -1825,7 +1825,7 @@ $report_KL=0;
 
 &printer("\nBeginning Ensemble Defect Optimization.\n\n");
 
-
+$test_first = 1; #Alyona: set to 1 to test the first time running the loop
 $happy = 0; #not happy anymore
 do{
 
@@ -1839,14 +1839,17 @@ do{
     @repeat_map = ();
     $repeat_map_text = "";
 
-    &countrepeats;
+    &countrepeats; #Alyona: on first pass we don't need to count repeats
 
     my @au_bust=();
     my @gu_put =();
     my @mutation_sites =();  ##array storting the targeted mutations
     my $num_mutation_spots=0;
 
-    $GC_check=100;
+    &countGC();
+    if($GC_cont>$max_GC_opt){ $GC_check=100;}else{ $GC_check=0;} #Alyona: on first pass we need to check GC
+
+    &printer("test first: $test_first\n");
     if($test_first == 0){ ##test to see if this is the first time running this loop
 
         $attempts += 1;
@@ -1880,7 +1883,7 @@ do{
             }
 
             if ($rad_level < 2){$rad_level = 2;} #set a min rad level
-            if ($rad_level > 20){$rad_level = 20;} #set a max rad level
+            if ($rad_level > 20){$rad_level = 20;} #set a max rad level #Alyona tried to increase from 20 to 200
 
             my $mut_scale = $rad_level/($num_mutation_spots+.001);  ##scale back the odds of mutation so that there are always ~radlevel mutations.
             &printer(" M[$num_mutation_spots] (*$rad_level) ");
@@ -2062,6 +2065,7 @@ do{
         $last_palindromes = $palindromes;
 
         $rad_level += 3;    #ramp up confidence fast! things fail a lot at this stage.
+        #$rad_level = 100; #Alyona: set rad_level to 100 to avoid the barrier
         for ( $i=0; $i<$strand_length; $i++){
             if (($best_sol[$i]) eq ($trial_sol[$i])) {
                 $mut_map[$i] = "-";
@@ -2090,7 +2094,7 @@ do{
 
         } else {    ##else don't keep sequence
             $rad_level += -1;  #decrease confidence a little bit every time it fails
-            if ($rad_level <3){$rad_level=20;}  ##if the rad level get's low, then cycle to a high level to try to escape the barrier
+            if ($rad_level <3){$rad_level=20;}  ##if the rad level get's low, then cycle to a high level to try to escape the barrier #Alyona
             if($trial_dist > 0){&printer(" Bad Fold: -D$trial_dist ");}
             &printer("Reverting to previous design.\n\n");
             for ( $i=0; $i<$strand_length; $i++){
@@ -2117,19 +2121,19 @@ sub countGC {#Count GCs
    for ( $i=0; $i<$strand_length; $i++){
      if ($target[$i]eq"("){
         $pairs += 1;
-        if ((($best_sol[$i]eq"C") && ($best_sol[$map[$i]]eq"G")) || (($best_sol[$i]eq"G") && ($best_sol[$map[$i]]eq"C"))) {
+        if ((($trial_sol[$i]eq"C") && ($trial_sol[$map[$i]]eq"G")) || (($trial_sol[$i]eq"G") && ($trial_sol[$map[$i]]eq"C"))) {
           $GC_pairs+=1;
         }
-        if ((($best_sol[$i]eq"A") && ($best_sol[$map[$i]]eq"U")) || (($best_sol[$i]eq"U") && ($best_sol[$map[$i]]eq"A"))) {
+        if ((($trial_sol[$i]eq"A") && ($trial_sol[$map[$i]]eq"U")) || (($trial_sol[$i]eq"U") && ($trial_sol[$map[$i]]eq"A"))) {
           $AU_pairs+=1;
         }
-        if ((($best_sol[$i]eq"U") && ($best_sol[$map[$i]]eq"G")) || (($best_sol[$i]eq"G") && ($best_sol[$map[$i]]eq"U"))) {
+        if ((($trial_sol[$i]eq"U") && ($trial_sol[$map[$i]]eq"G")) || (($trial_sol[$i]eq"G") && ($trial_sol[$map[$i]]eq"U"))) {
           $GU_pairs+=1;
         }
      }
      elsif ($init_target[$i]eq"["){  ##only count KLs, not '{' hinted bps.
         $KL_pairs += 1;
-        if ((($best_sol[$i]eq"C") && ($best_sol[$map[$i]]eq"G")) || (($best_sol[$i]eq"G") && ($best_sol[$map[$i]]eq"C"))) {
+        if ((($trial_sol[$i]eq"C") && ($trial_sol[$map[$i]]eq"G")) || (($trial_sol[$i]eq"G") && ($trial_sol[$map[$i]]eq"C"))) {
           $KL_GC_pairs+=1;
         }
      }
@@ -2307,31 +2311,22 @@ for ( $i=0; $i<$strand_length; $i++){
 
 for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and mark them.
     for (my $j=($i+1); $j<$strand_length-9; $j++){
-        if(($trial_sol[$j]eq$trial_sol[$i]) &&   ##look for 180KL signature
-        ($trial_sol[$j+1]eq$trial_sol[$i+1]) &&
-        ($trial_sol[$j+2]eq$trial_sol[$i+2]) &&
-        ($trial_sol[$j+3]eq$trial_sol[$i+3]) &&
-        ($trial_sol[$j+4]eq$trial_sol[$i+4]) &&
-        ($trial_sol[$j+5]eq$trial_sol[$i+5]) &&
-        ($trial_sol[$j+6]eq$trial_sol[$i+6]) &&
-        ($trial_sol[$j+7]eq$trial_sol[$i+7]) &&
-        ($targetnopk[$j]eq".") &&
-        ($targetnopk[$j+1]eq".") &&
-        ($targetnopk[$j+2]eq".") &&
-        ($targetnopk[$j+3]eq".") &&
-        ($targetnopk[$j+4]eq".") &&
-        ($targetnopk[$j+5]eq".") &&
-        ($targetnopk[$j+6]eq".") &&
-        ($targetnopk[$j+7]eq".") &&
-        ($targetnopk[$i]eq".") &&
-        ($targetnopk[$i+1]eq".") &&
-        ($targetnopk[$i+2]eq".") &&
-        ($targetnopk[$i+3]eq".") &&
-        ($targetnopk[$i+4]eq".") &&
-        ($targetnopk[$i+5]eq".") &&
-        ($targetnopk[$i+6]eq".") &&
-        ($targetnopk[$i+7]eq".") &&
-               ($constraint[$j+4]eq"N")){
+        if(($trial_sol[$j]eq$trial_sol[$i]) &&  ($constraint[$i]eq"N") &&  ($constraint[$j]eq"N") && ##look for 180KL signature
+        ($trial_sol[$j+1]eq$trial_sol[$i+1]) && ($constraint[$i+1]eq"N") &&  ($constraint[$j+1]eq"N") &&
+        ($trial_sol[$j+2]eq$trial_sol[$i+2]) && ($constraint[$i+2]eq"N") &&  ($constraint[$j+2]eq"N") &&
+        ($trial_sol[$j+3]eq$trial_sol[$i+3]) && ($constraint[$i+3]eq"N") &&  ($constraint[$j+3]eq"N") &&
+        ($trial_sol[$j+4]eq$trial_sol[$i+4]) && ($constraint[$i+4]eq"N") &&  ($constraint[$j+4]eq"N") &&
+        ($trial_sol[$j+5]eq$trial_sol[$i+5]) && ($constraint[$i+5]eq"N") &&  ($constraint[$j+5]eq"N") &&
+        ($trial_sol[$j+6]eq$trial_sol[$i+6]) && ($constraint[$i+6]eq"N") &&  ($constraint[$j+6]eq"N") &&
+        ($trial_sol[$j+7]eq$trial_sol[$i+7]) && ($constraint[$i+7]eq"N") &&  ($constraint[$j+7]eq"N") &&
+        ($target[$i]eq".") && ($target[$j]eq".") &&
+        ($target[$i+1]eq".") && ($target[$j+1]eq".") &&
+        ($target[$i+2]eq"[" || $target[$i+2]eq"]") && ($target[$j+2]eq"[" || $target[$j+2]eq"]") &&
+        ($target[$i+3]eq"[" || $target[$i+3]eq"]") && ($target[$j+3]eq"[" || $target[$j+3]eq"]") &&
+        ($target[$i+4]eq"[" || $target[$i+4]eq"]") && ($target[$j+4]eq"[" || $target[$j+4]eq"]") &&
+        ($target[$i+5]eq"[" || $target[$i+5]eq"]") && ($target[$j+5]eq"[" || $target[$j+5]eq"]") &&
+        ($target[$i+3]eq"[" || $target[$i+6]eq"]") && ($target[$j+3]eq"[" || $target[$j+6]eq"]") &&
+        ($target[$i+7]eq".") && ($target[$j+7]eq".")) {
             $pattern_zones[$i]=$trial_sol[$i];   $pattern_zones[$j]=$trial_sol[$i];
             $pattern_zones[$i+1]=$trial_sol[$i+1]; $pattern_zones[$j+1]=$trial_sol[$i+1];
             $pattern_zones[$i+2]=$trial_sol[$i+2]; $pattern_zones[$j+2]=$trial_sol[$i+2];
@@ -2342,32 +2337,21 @@ for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and m
             $pattern_zones[$i+7]=$trial_sol[$i+7]; $pattern_zones[$j+7]=$trial_sol[$i+7];
             $KL_repeats += 1;
         }
-        elsif (($trial_sol[$j+1]eq$trial_sol[$i+1]) &&   ##look for 120KL signature
-        ($trial_sol[$j+2]eq$trial_sol[$i+2]) &&
-        ($trial_sol[$j+3]eq$trial_sol[$i+3]) &&
-        ($trial_sol[$j+4]eq$trial_sol[$i+4]) &&
-        ($trial_sol[$j+5]eq$trial_sol[$i+5]) &&
-        ($trial_sol[$j+6]eq$trial_sol[$i+6]) &&
-        ($trial_sol[$j+7]eq$trial_sol[$i+7]) &&
-        ($targetnopk[$j]eq"(") &&
-        ($targetnopk[$j+1]eq".") &&
-        ($targetnopk[$j+2]eq".") &&
-        ($targetnopk[$j+3]eq".") &&
-        ($targetnopk[$j+4]eq".") &&
-        ($targetnopk[$j+5]eq".") &&
-        ($targetnopk[$j+6]eq".") &&
-        ($targetnopk[$j+7]eq".") &&
-        ($targetnopk[$j+8]eq")") &&
-        ($targetnopk[$i]eq"(") &&
-        ($targetnopk[$i+1]eq".") &&
-        ($targetnopk[$i+2]eq".") &&
-        ($targetnopk[$i+3]eq".") &&
-        ($targetnopk[$i+4]eq".") &&
-        ($targetnopk[$i+5]eq".") &&
-        ($targetnopk[$i+6]eq".") &&
-        ($targetnopk[$i+7]eq".") &&
-        ($targetnopk[$i+8]eq")") &&
-               ($constraint[$j+4]eq"N") ){
+        elsif( ($trial_sol[$j+1]eq$trial_sol[$i+1]) && $constraint[$i+1]eq"N" &&  $constraint[$j+1]eq"N" && ##look for 120KL signature
+        ($trial_sol[$j+2]eq$trial_sol[$i+2]) && $constraint[$i+2]eq"N" &&  $constraint[$j+2]eq"N" &&
+        ($trial_sol[$j+3]eq$trial_sol[$i+3]) && $constraint[$i+3]eq"N" &&  $constraint[$j+3]eq"N" &&
+        ($trial_sol[$j+4]eq$trial_sol[$i+4]) && $constraint[$i+4]eq"N" &&  $constraint[$j+4]eq"N" &&
+        ($trial_sol[$j+5]eq$trial_sol[$i+5]) && $constraint[$i+5]eq"N" &&  $constraint[$j+5]eq"N" &&
+        ($trial_sol[$j+6]eq$trial_sol[$i+6]) && $constraint[$i+6]eq"N" &&  $constraint[$j+6]eq"N" &&
+        ($trial_sol[$j+7]eq$trial_sol[$i+7]) && $constraint[$i+7]eq"N" &&  $constraint[$j+7]eq"N" &&
+        ($target[$i+1]eq".") && ($target[$j+1]eq".") &&
+        ($target[$i+2]eq"[" || $target[$i+2]eq"]") && ($target[$j+2]eq"[" || $target[$j+2]eq"]") &&
+        ($target[$i+3]eq"[" || $target[$i+3]eq"]") && ($target[$j+3]eq"[" || $target[$j+3]eq"]") &&
+        ($target[$i+4]eq"[" || $target[$i+4]eq"]") && ($target[$j+4]eq"[" || $target[$j+4]eq"]") &&
+        ($target[$i+5]eq"[" || $target[$i+5]eq"]") && ($target[$j+5]eq"[" || $target[$j+5]eq"]") &&
+        ($target[$i+3]eq"[" || $target[$i+6]eq"]") && ($target[$j+3]eq"[" || $target[$j+6]eq"]") &&
+        ($target[$i+7]eq".") && ($target[$j+7]eq"."))
+            {
             $pattern_zones[$i+1]=$trial_sol[$i+1]; $pattern_zones[$j+1]=$trial_sol[$i+1];
             $pattern_zones[$i+2]=$trial_sol[$i+2]; $pattern_zones[$j+2]=$trial_sol[$i+2];
             $pattern_zones[$i+3]=$trial_sol[$i+3]; $pattern_zones[$j+3]=$trial_sol[$i+3];
@@ -2383,7 +2367,6 @@ for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and m
 my $pattern_zones_text = join "",@pattern_zones;
 if ($report_KL==1){&printer("\n$KL_repeats repeated KL sequences:\n$pattern_zones_text\n\n");}
 else {&printer("\n$KL_repeats KL repeats found.\n\n");}
-
 }
 
 sub duplex { #outputs to $distance
@@ -2713,9 +2696,10 @@ sub analyzeKL {
         &printer("\nFinal KL Score = $KL_score\n");
 }
 
+#Alyona: changed best sol to trial sol here
 sub export {
-        $best_sol_seq = join "",@best_sol;
-        qx(echo $best_sol_seq > seq.txt);
+        my $trial_sol_seq = join "",@trial_sol;
+        qx(echo $trial_sol_seq > seq.txt);
 
         my $ensemblediversity = qx(rnafold --noPS -p < seq.txt);
 
@@ -2736,13 +2720,13 @@ sub export {
 
             &printer("NEW OPTIMAL: Exporting design to $name\_design\n\n");
 
-            &printer("$best_sol_seq\n\n");
+            &printer("$trial_sol_seq\n\n");
 
             my $filename = int($lowest_ED*100)/100;
             open(my $file_out, '>', "$output_file_path$name\_design\_$filename.txt");
             print $file_out "$name\n";
             print $file_out "$targetstringpk\n";
-            print $file_out "$best_sol_seq\n\n";
+            print $file_out "$trial_sol_seq\n\n";
 
             print $file_out " GC Content: $GC_cont  TotalPairs: $pairs\n GC pairs: $GC_pairs     AU pairs: $AU_pairs     GU pairs: $GU_pairs    KL: $KL_GC_cont %GC\n\n\n";
 

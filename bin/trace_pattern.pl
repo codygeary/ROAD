@@ -565,7 +565,7 @@ if ( $file2 eq "no" ) {
     foreach $pri ( @pri ) {
         if ( $pri =~ /[NGACURYKMSWVHBD]/ ) { print "$pri"; }
         if ( $pri eq "T" ) { print "U"; }
-        if ( $seq eq "X" ) { print "N"; }
+        if ( $pri eq "X" ) { print "N"; }
     }
     print "\n";
 }
