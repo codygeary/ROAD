@@ -1503,7 +1503,7 @@ do{
 
         } else {    ##else don't keep sequence
             $rad_level += -1;  #decrease confidence a little bit every time it fails
-            if ($rad_level <3){$rad_level=3;}  ##set the minimum to 3, so that things don't slow down too much #Alyona
+            if ($rad_level <3){$rad_level=3;}  ##set the minimum to 3, so that things don't slow down too much 
             &printer(" Bad Fold: -D$trial_dist");
             for ( $i=0; $i<$strand_length; $i++){
                 $trial_sol[$i]=$best_sol[$i];  #reset the trial solution
@@ -1839,7 +1839,7 @@ do{
     @repeat_map = ();
     $repeat_map_text = "";
 
-    &countrepeats; #Alyona: on first pass we don't need to count repeats
+    &countrepeats; 
 
     my @au_bust=();
     my @gu_put =();
@@ -1883,7 +1883,7 @@ do{
             }
 
             if ($rad_level < 2){$rad_level = 2;} #set a min rad level
-            if ($rad_level > 20){$rad_level = 20;} #set a max rad level #Alyona tried to increase from 20 to 200
+            if ($rad_level > 20){$rad_level = 20;} #set a max rad level 
 
             my $mut_scale = $rad_level/($num_mutation_spots+.001);  ##scale back the odds of mutation so that there are always ~radlevel mutations.
             &printer(" M[$num_mutation_spots] (*$rad_level) ");
@@ -2065,7 +2065,6 @@ do{
         $last_palindromes = $palindromes;
 
         $rad_level += 3;    #ramp up confidence fast! things fail a lot at this stage.
-        #$rad_level = 100; #Alyona: set rad_level to 100 to avoid the barrier
         for ( $i=0; $i<$strand_length; $i++){
             if (($best_sol[$i]) eq ($trial_sol[$i])) {
                 $mut_map[$i] = "-";
@@ -2094,7 +2093,7 @@ do{
 
         } else {    ##else don't keep sequence
             $rad_level += -1;  #decrease confidence a little bit every time it fails
-            if ($rad_level <3){$rad_level=20;}  ##if the rad level get's low, then cycle to a high level to try to escape the barrier #Alyona
+            if ($rad_level <3){$rad_level=10;}  ##if the rad level get's low, then cycle to a high level to try to escape the barrier 
             if($trial_dist > 0){&printer(" Bad Fold: -D$trial_dist ");}
             &printer("Reverting to previous design.\n\n");
             for ( $i=0; $i<$strand_length; $i++){
@@ -2309,7 +2308,7 @@ for ( $i=0; $i<$strand_length; $i++){
    $pattern_zones[$i] = "-";  ##clear out the pattern array
 }
 
-for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and mark them.
+for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and mark them. #change from Alyona not to mark long unpaired regions as KLs
     for (my $j=($i+1); $j<$strand_length-9; $j++){
         if(($trial_sol[$j]eq$trial_sol[$i]) &&  ($constraint[$i]eq"N") &&  ($constraint[$j]eq"N") && ##look for 180KL signature
         ($trial_sol[$j+1]eq$trial_sol[$i+1]) && ($constraint[$i+1]eq"N") &&  ($constraint[$j+1]eq"N") &&
@@ -2321,11 +2320,10 @@ for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and m
         ($trial_sol[$j+7]eq$trial_sol[$i+7]) && ($constraint[$i+7]eq"N") &&  ($constraint[$j+7]eq"N") &&
         ($target[$i]eq".") && ($target[$j]eq".") &&
         ($target[$i+1]eq".") && ($target[$j+1]eq".") &&
-        ($target[$i+2]eq"[" || $target[$i+2]eq"]") && ($target[$j+2]eq"[" || $target[$j+2]eq"]") &&
-        ($target[$i+3]eq"[" || $target[$i+3]eq"]") && ($target[$j+3]eq"[" || $target[$j+3]eq"]") &&
-        ($target[$i+4]eq"[" || $target[$i+4]eq"]") && ($target[$j+4]eq"[" || $target[$j+4]eq"]") &&
-        ($target[$i+5]eq"[" || $target[$i+5]eq"]") && ($target[$j+5]eq"[" || $target[$j+5]eq"]") &&
-        ($target[$i+3]eq"[" || $target[$i+6]eq"]") && ($target[$j+3]eq"[" || $target[$j+6]eq"]") &&
+        (($target[$i+2]eq"[" && $target[$i+3]eq"[" && $target[$i+4]eq"[" && $target[$i+5]eq"[" && $target[$i+6]eq"[") 
+        || ($target[$i+2]eq"]" && $target[$i+3]eq"]" && $target[$i+4]eq"]" && $target[$i+5]eq"]" && $target[$i+6]eq"]")) &&
+        (($target[$j+2]eq"[" && $target[$j+3]eq"[" && $target[$j+4]eq"[" && $target[$j+5]eq"[" && $target[$j+6]eq"[") 
+        || ($target[$j+2]eq"]" && $target[$j+3]eq"]" && $target[$j+4]eq"]" && $target[$j+5]eq"]" && $target[$j+6]eq"]")) &&
         ($target[$i+7]eq".") && ($target[$j+7]eq".")) {
             $pattern_zones[$i]=$trial_sol[$i];   $pattern_zones[$j]=$trial_sol[$i];
             $pattern_zones[$i+1]=$trial_sol[$i+1]; $pattern_zones[$j+1]=$trial_sol[$i+1];
