@@ -258,8 +258,9 @@ sub map {
 
         if ($char eq ".") {
             $map[$counter] = $counter;  # Single strands map to themselves
-        } elsif ($char eq '(' || $char eq '[' || $char eq '{') {
+        } elsif ($char eq '(' || $char eq '[' || $char eq '{' || $char eq 'A' || $char eq 'B'|| $char eq 'C' || $char eq 'D' || $char eq 'E' || $char eq 'F' || $char eq 'J'|| $char eq 'H'|| $char eq 'I' || $char eq 'J') {
             # If it's an opening bracket, push its index onto the stack
+            # Alyona: added letters as an opening brackets
             push @{ $bracket_stack{$char} }, $counter;  # Store the index of the opening bracket
         } elsif (exists $bracket_stack{$char}) {
             # If it's a closing bracket, find its matching opening bracket
@@ -272,6 +273,27 @@ sub map {
                 $opening_bracket = '[';
             } elsif ($char eq '}') {
                 $opening_bracket = '{';
+            }  elsif ($char eq '1') {
+                $opening_bracket = 'A';
+            }  elsif ($char eq '2') {
+                $opening_bracket = 'B'; 
+            }  elsif ($char eq '3') {
+                $opening_bracket = 'C';
+            }  elsif ($char eq '4') {
+                $opening_bracket = 'D';
+            }  elsif ($char eq '5') {
+                $opening_bracket = 'E'; 
+            }  elsif ($char eq '6') {
+                $opening_bracket = 'F';
+            }  elsif ($char eq '3') {
+                $opening_bracket = 'G';
+            }  elsif ($char eq '4') {
+                $opening_bracket = 'H';
+            }  elsif ($char eq '5') {
+                $opening_bracket = 'I'; 
+            }  elsif ($char eq '6') {
+                $opening_bracket = 'J';
+
             }
 
             # Pop the last index of the opening bracket
@@ -2310,21 +2332,22 @@ for ( $i=0; $i<$strand_length; $i++){
 
 for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and mark them. #change from Alyona not to mark long unpaired regions as KLs
     for (my $j=($i+1); $j<$strand_length-9; $j++){
-        if(($trial_sol[$j]eq$trial_sol[$i]) &&  ($constraint[$i]eq"N") &&  ($constraint[$j]eq"N") && ##look for 180KL signature
-        ($trial_sol[$j+1]eq$trial_sol[$i+1]) && ($constraint[$i+1]eq"N") &&  ($constraint[$j+1]eq"N") &&
-        ($trial_sol[$j+2]eq$trial_sol[$i+2]) && ($constraint[$i+2]eq"N") &&  ($constraint[$j+2]eq"N") &&
-        ($trial_sol[$j+3]eq$trial_sol[$i+3]) && ($constraint[$i+3]eq"N") &&  ($constraint[$j+3]eq"N") &&
-        ($trial_sol[$j+4]eq$trial_sol[$i+4]) && ($constraint[$i+4]eq"N") &&  ($constraint[$j+4]eq"N") &&
-        ($trial_sol[$j+5]eq$trial_sol[$i+5]) && ($constraint[$i+5]eq"N") &&  ($constraint[$j+5]eq"N") &&
-        ($trial_sol[$j+6]eq$trial_sol[$i+6]) && ($constraint[$i+6]eq"N") &&  ($constraint[$j+6]eq"N") &&
-        ($trial_sol[$j+7]eq$trial_sol[$i+7]) && ($constraint[$i+7]eq"N") &&  ($constraint[$j+7]eq"N") &&
-        ($target[$i]eq".") && ($target[$j]eq".") &&
-        ($target[$i+1]eq".") && ($target[$j+1]eq".") &&
-        (($target[$i+2]eq"[" && $target[$i+3]eq"[" && $target[$i+4]eq"[" && $target[$i+5]eq"[" && $target[$i+6]eq"[") 
-        || ($target[$i+2]eq"]" && $target[$i+3]eq"]" && $target[$i+4]eq"]" && $target[$i+5]eq"]" && $target[$i+6]eq"]")) &&
-        (($target[$j+2]eq"[" && $target[$j+3]eq"[" && $target[$j+4]eq"[" && $target[$j+5]eq"[" && $target[$j+6]eq"[") 
-        || ($target[$j+2]eq"]" && $target[$j+3]eq"]" && $target[$j+4]eq"]" && $target[$j+5]eq"]" && $target[$j+6]eq"]")) &&
-        ($target[$i+7]eq".") && ($target[$j+7]eq".")) {
+        if(($trial_sol[$j]eq$trial_sol[$i]) &&  ($constraint[$i]eq"A") &&  ($constraint[$j]eq"A") && ##look for 180KL signature #starts with AA, ends with A, has "(" before and ")" after 
+        ($trial_sol[$j+1]eq$trial_sol[$i+1]) && ($constraint[$i+1]eq"A") &&  ($constraint[$j+1]eq"A") &&
+        ($trial_sol[$j+2]eq$trial_sol[$i+2]) && 
+        ($trial_sol[$j+3]eq$trial_sol[$i+3]) && 
+        ($trial_sol[$j+4]eq$trial_sol[$i+4]) && 
+        ($trial_sol[$j+5]eq$trial_sol[$i+5]) && 
+        ($trial_sol[$j+6]eq$trial_sol[$i+6]) && 
+        ($trial_sol[$j+7]eq$trial_sol[$i+7]) && ($constraint[$i+7]eq"A") &&  ($constraint[$j+7]eq"A") &&
+        ($targetnopk[$i-1]eq"(") && ($targetnopk[$j-1]eq"(") &&
+        ($targetnopk[$i]eq".") && ($targetnopk[$j]eq".") && 
+        ($targetnopk[$i+1]eq".") && ($targetnopk[$j+1]eq".") &&
+        ($targetnopk[$i+2]eq"." && $targetnopk[$i+3]eq"." && $targetnopk[$i+4]eq"." && $targetnopk[$i+5]eq"." && $targetnopk[$i+6]eq".") &&
+        ($targetnopk[$j+2]eq"." && $targetnopk[$j+3]eq"." && $targetnopk[$j+4]eq"." && $targetnopk[$j+5]eq"." && $targetnopk[$j+6]eq".") &&
+        ($targetnopk[$i+7]eq".") && ($targetnopk[$j+7]eq".") &&
+        ($targetnopk[$i+8]eq")") && ($targetnopk[$j+8]eq")") &&
+        ($constraint[$j+4]eq"N")){
             $pattern_zones[$i]=$trial_sol[$i];   $pattern_zones[$j]=$trial_sol[$i];
             $pattern_zones[$i+1]=$trial_sol[$i+1]; $pattern_zones[$j+1]=$trial_sol[$i+1];
             $pattern_zones[$i+2]=$trial_sol[$i+2]; $pattern_zones[$j+2]=$trial_sol[$i+2];
@@ -2335,21 +2358,32 @@ for ( $i=0; $i<$strand_length-10; $i++){    #seek any repeated KL sequence and m
             $pattern_zones[$i+7]=$trial_sol[$i+7]; $pattern_zones[$j+7]=$trial_sol[$i+7];
             $KL_repeats += 1;
         }
-        elsif( ($trial_sol[$j+1]eq$trial_sol[$i+1]) && $constraint[$i+1]eq"N" &&  $constraint[$j+1]eq"N" && ##look for 120KL signature
-        ($trial_sol[$j+2]eq$trial_sol[$i+2]) && $constraint[$i+2]eq"N" &&  $constraint[$j+2]eq"N" &&
-        ($trial_sol[$j+3]eq$trial_sol[$i+3]) && $constraint[$i+3]eq"N" &&  $constraint[$j+3]eq"N" &&
-        ($trial_sol[$j+4]eq$trial_sol[$i+4]) && $constraint[$i+4]eq"N" &&  $constraint[$j+4]eq"N" &&
-        ($trial_sol[$j+5]eq$trial_sol[$i+5]) && $constraint[$i+5]eq"N" &&  $constraint[$j+5]eq"N" &&
-        ($trial_sol[$j+6]eq$trial_sol[$i+6]) && $constraint[$i+6]eq"N" &&  $constraint[$j+6]eq"N" &&
-        ($trial_sol[$j+7]eq$trial_sol[$i+7]) && $constraint[$i+7]eq"N" &&  $constraint[$j+7]eq"N" &&
-        ($target[$i+1]eq".") && ($target[$j+1]eq".") &&
-        ($target[$i+2]eq"[" || $target[$i+2]eq"]") && ($target[$j+2]eq"[" || $target[$j+2]eq"]") &&
-        ($target[$i+3]eq"[" || $target[$i+3]eq"]") && ($target[$j+3]eq"[" || $target[$j+3]eq"]") &&
-        ($target[$i+4]eq"[" || $target[$i+4]eq"]") && ($target[$j+4]eq"[" || $target[$j+4]eq"]") &&
-        ($target[$i+5]eq"[" || $target[$i+5]eq"]") && ($target[$j+5]eq"[" || $target[$j+5]eq"]") &&
-        ($target[$i+3]eq"[" || $target[$i+6]eq"]") && ($target[$j+3]eq"[" || $target[$j+6]eq"]") &&
-        ($target[$i+7]eq".") && ($target[$j+7]eq"."))
-            {
+        elsif (($trial_sol[$j+1]eq$trial_sol[$i+1]) &&   ##look for 120KL signature
+        ($trial_sol[$j+2]eq$trial_sol[$i+2]) &&
+        ($trial_sol[$j+3]eq$trial_sol[$i+3]) &&
+        ($trial_sol[$j+4]eq$trial_sol[$i+4]) &&
+        ($trial_sol[$j+5]eq$trial_sol[$i+5]) &&
+        ($trial_sol[$j+6]eq$trial_sol[$i+6]) &&
+        ($trial_sol[$j+7]eq$trial_sol[$i+7]) &&
+        ($targetnopk[$j]eq"(") &&
+        ($targetnopk[$j+1]eq".") &&
+        ($targetnopk[$j+2]eq".") &&
+        ($targetnopk[$j+3]eq".") &&
+        ($targetnopk[$j+4]eq".") &&
+        ($targetnopk[$j+5]eq".") &&
+        ($targetnopk[$j+6]eq".") &&
+        ($targetnopk[$j+7]eq".") &&
+        ($targetnopk[$j+8]eq")") &&
+        ($targetnopk[$i]eq"(") &&
+        ($targetnopk[$i+1]eq".") &&
+        ($targetnopk[$i+2]eq".") &&
+        ($targetnopk[$i+3]eq".") &&
+        ($targetnopk[$i+4]eq".") &&
+        ($targetnopk[$i+5]eq".") &&
+        ($targetnopk[$i+6]eq".") &&
+        ($targetnopk[$i+7]eq".") &&
+        ($targetnopk[$i+8]eq")") &&
+               ($constraint[$j+4]eq"N") ){
             $pattern_zones[$i+1]=$trial_sol[$i+1]; $pattern_zones[$j+1]=$trial_sol[$i+1];
             $pattern_zones[$i+2]=$trial_sol[$i+2]; $pattern_zones[$j+2]=$trial_sol[$i+2];
             $pattern_zones[$i+3]=$trial_sol[$i+3]; $pattern_zones[$j+3]=$trial_sol[$i+3];
