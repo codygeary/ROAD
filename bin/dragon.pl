@@ -252,13 +252,12 @@ sub map {
 
     # Use an array to track positions of opening brackets
     my %opening_bracket_positions;
-
     for my $counter (0 .. $#secondary) {
         my $char = $secondary[$counter];
 
         if ($char eq ".") {
             $map[$counter] = $counter;  # Single strands map to themselves
-        } elsif ($char eq '(' || $char eq '[' || $char eq '{' || $char eq 'A' || $char eq 'B'|| $char eq 'C' || $char eq 'D' || $char eq 'E' || $char eq 'F' || $char eq 'J'|| $char eq 'H'|| $char eq 'I' || $char eq 'J') {
+        } elsif ($char eq '(' || $char eq '[' || $char eq '{' || $char eq 'A' || $char eq 'B'|| $char eq 'C' || $char eq 'D' || $char eq 'E' || $char eq 'F' || $char eq 'G' || $char eq 'J'|| $char eq 'H'|| $char eq 'I') {
             # If it's an opening bracket, push its index onto the stack
             # Alyona: added letters as an opening brackets
             push @{ $bracket_stack{$char} }, $counter;  # Store the index of the opening bracket
@@ -285,13 +284,13 @@ sub map {
                 $opening_bracket = 'E'; 
             }  elsif ($char eq '6') {
                 $opening_bracket = 'F';
-            }  elsif ($char eq '3') {
+            }  elsif ($char eq '7') {
                 $opening_bracket = 'G';
-            }  elsif ($char eq '4') {
+            }  elsif ($char eq '8') {
                 $opening_bracket = 'H';
-            }  elsif ($char eq '5') {
+            }  elsif ($char eq '9') {
                 $opening_bracket = 'I'; 
-            }  elsif ($char eq '6') {
+            }  elsif ($char eq '0') {
                 $opening_bracket = 'J';
 
             }
